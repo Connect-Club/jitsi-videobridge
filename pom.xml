@@ -344,6 +344,21 @@
                <skipAssembly>${assembly.skipAssembly}</skipAssembly>
              </configuration>
            </execution>
+           <execution>
+             <id>assemble-archive-docker</id>
+             <phase>package</phase>
+             <goals>
+               <goal>single</goal>
+             </goals>
+             <configuration>
+               <finalName>${artifactId}.docker</finalName>
+               <appendAssemblyId>false</appendAssemblyId>
+               <descriptors>
+                 <descriptor>src/assembly/archive.docker.xml</descriptor>
+               </descriptors>
+               <skipAssembly>${assembly.skipAssembly}</skipAssembly>
+             </configuration>
+           </execution>
          </executions>
       </plugin>
       <plugin>
