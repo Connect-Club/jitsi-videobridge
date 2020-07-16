@@ -936,7 +936,7 @@ public class BitrateController
         // First, bubble-up the selected endpoints (whoever's on-stage needs to
         // be visible).
         for (Iterator<AbstractEndpoint> it = conferenceEndpoints.iterator();
-             it.hasNext() && endpointPriority < adjustedLastN;)
+             it.hasNext() && (adjustedLastN == 0 || endpointPriority < adjustedLastN);)
         {
             AbstractEndpoint sourceEndpoint = it.next();
             if (sourceEndpoint.isExpired()
@@ -976,7 +976,7 @@ public class BitrateController
         if (!pinnedEndpointIds.isEmpty())
         {
             for (Iterator<AbstractEndpoint> it = conferenceEndpoints.iterator();
-                 it.hasNext() && endpointPriority < adjustedLastN;)
+                 it.hasNext() && (adjustedLastN == 0 || endpointPriority < adjustedLastN);)
             {
                 AbstractEndpoint sourceEndpoint = it.next();
                 if (sourceEndpoint.isExpired()
