@@ -147,6 +147,7 @@ public class ConferenceShim
     public void describeShallow(ColibriConferenceIQ iq)
     {
         iq.setID(conference.getID());
+        iq.setGID(conference.getGid());
         iq.setName(conference.getName());
     }
 

@@ -514,6 +514,7 @@ public final class JSONSerializer
         else
         {
             String id = conference.getID();
+            String gid = conference.getGID();
             List<ColibriConferenceIQ.Content> contents
                 = conference.getContents();
             List<ColibriConferenceIQ.ChannelBundle> channelBundles
@@ -526,6 +527,8 @@ public final class JSONSerializer
             // id
             if (id != null)
                 jsonObject.put(ColibriConferenceIQ.ID_ATTR_NAME, id);
+            if (gid != null)
+                jsonObject.put(ColibriConferenceIQ.GID_ATTR_NAME, gid);
             // contents
             if ((contents != null) && !contents.isEmpty())
                 jsonObject.put(CONTENTS, serializeContents(contents));

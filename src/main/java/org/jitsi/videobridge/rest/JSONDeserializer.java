@@ -417,6 +417,7 @@ public final class JSONDeserializer
         else
         {
             Object id = conference.get(ColibriConferenceIQ.ID_ATTR_NAME);
+            Object gid = conference.get(ColibriConferenceIQ.GID_ATTR_NAME);
             Object contents = conference.get(JSONSerializer.CONTENTS);
             Object channelBundles
                 = conference.get(JSONSerializer.CHANNEL_BUNDLES);
@@ -434,6 +435,11 @@ public final class JSONDeserializer
             if (id != null)
             {
                 conferenceIQ.setID(id.toString());
+            }
+            //gid
+            if (gid != null)
+            {
+                conferenceIQ.setGID(gid.toString());
             }
             // contents
             if (contents != null)

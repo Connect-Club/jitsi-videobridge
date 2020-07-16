@@ -49,7 +49,7 @@ public class Conferences extends ColibriResource
         {
             ColibriConferenceIQ conferenceIQ = new ColibriConferenceIQ();
 
-            conferenceIQ.setID(conference.getID());
+            conference.describeShallow(conferenceIQ);
             conferenceIQs.add(conferenceIQ);
         }
 
