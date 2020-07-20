@@ -641,6 +641,14 @@ public class Endpoint
             transceiver.sendPacket(packetInfo);
 
             return;
+        } else if(packet instanceof AudioRtpPacket && getLastN() == 0) {
+            if(!pinnedEndpoints.contains(packetInfo.getEndpointId()) && !selectedEndpoints.contains(packetInfo.getEndpointId())) {
+                return;
+            }
+
+            transceiver.sendPacket(packetInfo);
+
+            return;
         }
         else if (packet instanceof RtcpSrPacket)
         {

@@ -94,13 +94,13 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
     /**
      * The set of IDs of the pinned endpoints of this {@code Endpoint}.
      */
-    private Set<String> pinnedEndpoints = new HashSet<>();
+    protected Set<String> pinnedEndpoints = new HashSet<>();
 
     /**
      * The set of currently selected <tt>Endpoint</tt>s at this
      * <tt>Endpoint</tt>.
      */
-    private Set<String> selectedEndpoints = new HashSet<>();
+    protected Set<String> selectedEndpoints = new HashSet<>();
 
 
     /**
