@@ -15,18 +15,22 @@
  */
 package org.jitsi.videobridge;
 
-import org.jitsi.eventadmin.*;
-import org.jitsi.nlj.util.*;
-import org.jitsi.osgi.*;
-import org.jitsi.utils.logging2.*;
-import org.osgi.framework.*;
+import org.jitsi.eventadmin.Event;
+import org.jitsi.nlj.util.ClockUtils;
+import org.jitsi.osgi.EventHandlerActivator;
+import org.jitsi.osgi.ServiceUtils2;
+import org.jitsi.utils.logging2.Logger;
+import org.jitsi.utils.logging2.LoggerImpl;
+import org.osgi.framework.BundleContext;
 
-import java.time.*;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
-import java.util.stream.*;
+import java.util.stream.Collectors;
 
-import static org.jitsi.videobridge.EndpointMessageBuilder.*;
-import static org.jitsi.videobridge.EndpointConnectionStatusConfig.*;
+import static org.jitsi.videobridge.EndpointConnectionStatusConfig.Config;
+import static org.jitsi.videobridge.EndpointMessageBuilder.createEndpointConnectivityStatusChangeEvent;
 
 /**
  * This module monitors all endpoints across all conferences currently hosted
@@ -68,10 +72,9 @@ public class EndpointConnectionStatus
     private BundleContext bundleContext;
 
     /**
-     * The list of <tt>Endpoint</tt>s which have current their connection status
-     * classified as inactive.
+     * The map of <tt>Endpoint</tt>s and it connection status.
      */
-    private final Set<Endpoint> inactiveEndpoints = new HashSet<>();
+    private final Map<Endpoint, Boolean> endpointConnectionStatusMap = new HashMap<>();
 
     /**
      * The timer which runs the periodical connection status probing operation.
@@ -149,9 +152,9 @@ public class EndpointConnectionStatus
             timer = null;
         }
 
-        synchronized (inactiveEndpoints)
+        synchronized (endpointConnectionStatusMap)
         {
-            inactiveEndpoints.clear();
+            endpointConnectionStatusMap.clear();
         }
 
         this.bundleContext = null;
@@ -229,22 +232,19 @@ public class EndpointConnectionStatus
         }
 
         Duration noActivityTime = Duration.between(lastActivity, now);
-        boolean inactive = noActivityTime.compareTo(Config.getMaxInactivityLimit()) > 0;
+        boolean active = noActivityTime.compareTo(Config.getMaxInactivityLimit()) <= 0;
         boolean changed = false;
-        synchronized (inactiveEndpoints)
+        synchronized (endpointConnectionStatusMap)
         {
-            if (inactive && !inactiveEndpoints.contains(endpoint))
-            {
-                logger.debug(endpointId + " is considered disconnected");
+            Boolean connectionStatus = endpointConnectionStatusMap.get(endpoint);
+            if(connectionStatus == null || connectionStatus != active) {
+                if(active) {
+                    logger.debug(endpointId + " has reconnected or has just connected");
+                } else {
+                    logger.debug(endpointId + " is considered disconnected");
+                }
 
-                inactiveEndpoints.add(endpoint);
-                changed = true;
-            }
-            else if (!inactive && inactiveEndpoints.contains(endpoint))
-            {
-                logger.debug(endpointId + " has reconnected");
-
-                inactiveEndpoints.remove(endpoint);
+                endpointConnectionStatusMap.put(endpoint, active);
                 changed = true;
             }
         }
@@ -252,10 +252,10 @@ public class EndpointConnectionStatus
         if (changed)
         {
             // Broadcast connection "active/inactive" message over data channels
-            sendEndpointConnectionStatus(endpoint, !inactive, null);
+            sendEndpointConnectionStatus(endpoint, active, null);
         }
 
-        if (inactive && logger.isDebugEnabled())
+        if (!active && logger.isDebugEnabled())
         {
             logger.debug(String.format(
                     "No activity on %s for %s",
@@ -304,19 +304,20 @@ public class EndpointConnectionStatus
     }
 
     /**
-     * Prunes the {@link #inactiveEndpoints} list.
+     * Prunes the {@link #endpointConnectionStatusMap} map.
      */
     private void cleanupExpiredEndpointsStatus()
     {
-        List<Endpoint> replacements = new ArrayList<>();
-        synchronized (inactiveEndpoints)
+        Map<Endpoint, Boolean> replacements = new HashMap<>();
+        synchronized (endpointConnectionStatusMap)
         {
-            inactiveEndpoints.removeIf(e -> {
+            endpointConnectionStatusMap.entrySet().removeIf(entry -> {
+                Endpoint e = entry.getKey();
                 Conference conference = e.getConference();
                 AbstractEndpoint replacement =
-                    conference.getEndpoint(e.getID());
+                        conference.getEndpoint(e.getID());
                 boolean endpointReplaced =
-                    replacement != null && replacement != e;
+                        replacement != null && replacement != e;
 
                 // If an Endpoint from the inactive list has been re-created it
                 // means that at this point all participants currently have it in
@@ -325,7 +326,7 @@ public class EndpointConnectionStatus
                 {
                     if (replacement instanceof Endpoint)
                     {
-                        replacements.add((Endpoint)replacement);
+                        replacements.put((Endpoint)replacement, entry.getValue());
                     }
                 }
 
@@ -336,7 +337,7 @@ public class EndpointConnectionStatus
             });
             if (logger.isDebugEnabled())
             {
-                inactiveEndpoints.stream()
+                endpointConnectionStatusMap.keySet().stream()
                     .filter(Endpoint::isExpired)
                     .forEach(
                         e ->
@@ -345,9 +346,9 @@ public class EndpointConnectionStatus
             }
         }
 
-        for (Endpoint replacement: replacements)
+        for (Map.Entry<Endpoint, Boolean> replacement: replacements.entrySet())
         {
-            sendEndpointConnectionStatus(replacement, true, null);
+            sendEndpointConnectionStatus(replacement.getKey(), !replacement.getValue(), null);
         }
     }
 
@@ -383,17 +384,17 @@ public class EndpointConnectionStatus
         //
         // Looping over all inactive endpoints of all conferences maybe is not
         // the most efficient, but it should not be extremely large number.
-        List<Endpoint> endpoints;
-        synchronized (inactiveEndpoints)
+        Map<Endpoint,Boolean> endpoints;
+        synchronized (endpointConnectionStatusMap)
         {
-            endpoints = inactiveEndpoints.stream()
-                .filter(e -> e.getConference() == conference)
-                .collect(Collectors.toList());
+            endpoints = endpointConnectionStatusMap.entrySet().stream()
+                .filter(e -> e.getKey().getConference() == conference)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         }
 
-        for (Endpoint e: endpoints)
+        for (Map.Entry<Endpoint,Boolean> e: endpoints.entrySet())
         {
-            sendEndpointConnectionStatus(e, false, endpoint);
+            sendEndpointConnectionStatus(e.getKey(), e.getValue(), endpoint);
         }
     }
 }

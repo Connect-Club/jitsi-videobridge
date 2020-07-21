@@ -15,6 +15,7 @@
  */
 package org.jitsi.videobridge;
 
+import com.google.common.collect.ImmutableMap;
 import org.json.simple.*;
 
 import java.util.*;
@@ -138,12 +139,11 @@ public class EndpointMessageBuilder
     public static String createEndpointConnectivityStatusChangeEvent(
         String endpointId, boolean connected)
     {
-        return
-            "{\"colibriClass\":\""
-                + COLIBRI_CLASS_ENDPOINT_CONNECTIVITY_STATUS
-                + "\",\"endpoint\":\"" + JSONValue.escape(endpointId)
-                +"\", \"active\":\"" + String.valueOf(connected)
-                + "\"}";
+        return JSONObject.toJSONString(ImmutableMap.of(
+                "colibriClass", COLIBRI_CLASS_ENDPOINT_CONNECTIVITY_STATUS,
+                "endpoint", endpointId,
+                "active", connected
+        ));
     }
 
     /**
