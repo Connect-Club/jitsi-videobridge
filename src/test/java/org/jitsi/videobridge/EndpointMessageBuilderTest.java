@@ -63,7 +63,7 @@ public class EndpointMessageBuilderTest
                      json.get(Videobridge.COLIBRI_CLASS));
         assertEquals(id,
                      json.get("endpoint"));
-        assertEquals(Boolean.toString(status),
+        assertEquals(status,
                      json.get("active"));
     }
 
