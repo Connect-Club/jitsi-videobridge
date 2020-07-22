@@ -314,26 +314,24 @@ public class EndpointConnectionStatus
             endpointConnectionStatusMap.entrySet().removeIf(entry -> {
                 Endpoint e = entry.getKey();
                 Conference conference = e.getConference();
-                AbstractEndpoint replacement =
+                AbstractEndpoint endpointFromConference =
                         conference.getEndpoint(e.getID());
                 boolean endpointReplaced =
-                        replacement != null && replacement != e;
+                        endpointFromConference != null && endpointFromConference != e;
 
                 // If an Endpoint from the inactive list has been re-created it
                 // means that at this point all participants currently have it in
                 // the "inactive" state, so broadcast "active" in order to reset.
-                if (endpointReplaced)
+                if (endpointReplaced && endpointFromConference instanceof Endpoint
+                        || endpointFromConference == null && entry.getValue())
                 {
-                    if (replacement instanceof Endpoint)
-                    {
-                        replacements.put((Endpoint)replacement, entry.getValue());
-                    }
+                    replacements.put(e, entry.getValue());
                 }
 
                 // We intentionally keep endpoints that have expire in order to
                 // keep other endpoints in the conference notified about their
                 // failed state.
-                return conference.isExpired() || endpointReplaced;
+                return conference.isExpired() || endpointReplaced || endpointFromConference == null;
             });
             if (logger.isDebugEnabled())
             {
