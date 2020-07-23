@@ -1187,7 +1187,13 @@ public class Conference
             {
                 if (prevHandler != null)
                 {
-                    prevHandler.send(packetInfo.clone());
+                    //todo: delete when a bug in the library (jitsi-media-transform) is fixed
+                    //<----------------------------------------------------------------------
+                    PacketInfo clonedPacketInfo = packetInfo.clone();
+                    //PacketInfo.clone() ignores the field 'endpointId'
+                    clonedPacketInfo.setEndpointId(packetInfo.getEndpointId());
+                    //---------------------------------------------------------------------->
+                    prevHandler.send(clonedPacketInfo);
                 }
                 prevHandler = endpoint;
             }
