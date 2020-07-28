@@ -969,7 +969,6 @@ public class Conference
         if (removedEndpoint != null)
         {
             updateEndpointsCache();
-            broadcastMessage(EndpointMessageBuilder.createEndpointExpiredEvent(removedEndpoint.getID()));
         }
 
         if (tentacle != null)

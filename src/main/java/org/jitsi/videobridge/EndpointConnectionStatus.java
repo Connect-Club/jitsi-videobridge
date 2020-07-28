@@ -303,35 +303,42 @@ public class EndpointConnectionStatus
         }
     }
 
+    private void sendEndpointExpiredEvent(Endpoint subjectEndpoint) {
+        Conference conference = subjectEndpoint.getConference();
+        if (conference != null)
+        {
+            String msg = EndpointMessageBuilder.createEndpointExpiredEvent(subjectEndpoint.getID());
+            conference.broadcastMessage(msg);
+        } else {
+            logger.warn(
+                    "Attempt to send endpoint expired event for"
+                            + " endpoint " + subjectEndpoint.getID()
+                            + " without parent conference instance (expired?)");
+        }
+    }
+
     /**
      * Prunes the {@link #endpointConnectionStatusMap} map.
      */
     private void cleanupExpiredEndpointsStatus()
     {
-        Map<Endpoint, Boolean> replacements = new HashMap<>();
+        Map<Endpoint, Boolean> removedOrReplacedEndpointsWithLastStatus = new HashMap<>();
         synchronized (endpointConnectionStatusMap)
         {
             endpointConnectionStatusMap.entrySet().removeIf(entry -> {
-                Endpoint e = entry.getKey();
-                Conference conference = e.getConference();
+                Endpoint endpoint = entry.getKey();
+                Conference conference = endpoint.getConference();
                 AbstractEndpoint endpointFromConference =
-                        conference.getEndpoint(e.getID());
-                boolean endpointReplaced =
-                        endpointFromConference != null && endpointFromConference != e;
+                        conference.getEndpoint(endpoint.getID());
+                boolean endpointRemovedOrReplaced =
+                        endpointFromConference == null || endpointFromConference != endpoint;
 
-                // If an Endpoint from the inactive list has been re-created it
-                // means that at this point all participants currently have it in
-                // the "inactive" state, so broadcast "active" in order to reset.
-                if (endpointReplaced && endpointFromConference instanceof Endpoint
-                        || endpointFromConference == null && entry.getValue())
+                if (endpointRemovedOrReplaced && (endpointFromConference == null || endpointFromConference instanceof Endpoint))
                 {
-                    replacements.put(e, entry.getValue());
+                    removedOrReplacedEndpointsWithLastStatus.put(endpoint, entry.getValue());
                 }
 
-                // We intentionally keep endpoints that have expire in order to
-                // keep other endpoints in the conference notified about their
-                // failed state.
-                return conference.isExpired() || endpointReplaced || endpointFromConference == null;
+                return conference.isExpired() || endpointRemovedOrReplaced;
             });
             if (logger.isDebugEnabled())
             {
@@ -344,9 +351,12 @@ public class EndpointConnectionStatus
             }
         }
 
-        for (Map.Entry<Endpoint, Boolean> replacement: replacements.entrySet())
+        for (Map.Entry<Endpoint, Boolean> endpointStatusEntry: removedOrReplacedEndpointsWithLastStatus.entrySet())
         {
-            sendEndpointConnectionStatus(replacement.getKey(), !replacement.getValue(), null);
+            if(endpointStatusEntry.getValue()) {
+                sendEndpointConnectionStatus(endpointStatusEntry.getKey(), false, null);
+            }
+            sendEndpointExpiredEvent(endpointStatusEntry.getKey());
         }
     }
 
