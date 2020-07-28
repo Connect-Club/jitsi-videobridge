@@ -107,6 +107,13 @@ public class EndpointMessageBuilder
         = "SelectedUpdateEvent";
 
     /**
+     * The {@link Videobridge#COLIBRI_CLASS} value indicating a
+     * {@code EndpointExpiredEvent}.
+     */
+    public static final String COLIBRI_CLASS_ENDPOINT_EXPIRED
+            = "EndpointExpiredEvent";
+
+    /**
      * The string which encodes a COLIBRI {@code ServerHello} message.
      */
     public static final String COLIBRI_CLASS_SERVER_HELLO = "ServerHello";
@@ -198,6 +205,13 @@ public class EndpointMessageBuilder
         selectedUpdate.put("colibriClass", COLIBRI_CLASS_SELECTED_UPDATE);
         selectedUpdate.put("isSelected", isSelected);
         return selectedUpdate.toJSONString();
+    }
+
+    public static String createEndpointExpiredEvent(String endpointId) {
+        return JSONObject.toJSONString(ImmutableMap.of(
+                "colibriClass", COLIBRI_CLASS_ENDPOINT_EXPIRED,
+                "endpoint", endpointId
+        ));
     }
 
 
