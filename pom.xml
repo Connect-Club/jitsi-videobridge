@@ -138,6 +138,26 @@
       <version>1.7.30</version>
     </dependency>
     <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>jul-to-slf4j</artifactId>
+      <version>1.7.30</version>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>log4j-over-slf4j</artifactId>
+      <version>1.7.30</version>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>1.2.3</version>
+    </dependency>
+    <dependency>
+      <groupId>net.logstash.logback</groupId>
+      <artifactId>logstash-logback-encoder</artifactId>
+      <version>6.4</version>
+    </dependency>
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>ice4j</artifactId>
       <version>3.0-14-g7016902</version>
@@ -162,6 +182,12 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>jitsi-stats</artifactId>
       <version>1.0-3-gd5cc199</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-simple</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -218,13 +244,6 @@
       <groupId>org.reflections</groupId>
       <artifactId>reflections</artifactId>
       <version>0.9.11</version>
-    </dependency>
-    <!-- runtime -->
-    <dependency>
-      <groupId>rusv</groupId>
-      <artifactId>agafua-syslog</artifactId>
-      <version>0.4</version>
-      <scope>runtime</scope>
     </dependency>
     <!-- test -->
     <dependency>

@@ -20,6 +20,7 @@ import org.jitsi.config.*;
 import org.jitsi.meet.*;
 import org.jitsi.videobridge.osgi.*;
 import org.jitsi.videobridge.xmpp.*;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 
 /**
  * Provides the <tt>main</tt> entry point of the Jitsi Videobridge application
@@ -99,6 +100,9 @@ public class Main
     public static void main(String[] args)
         throws Exception
     {
+        SLF4JBridgeHandler.removeHandlersForRootLogger();
+        SLF4JBridgeHandler.install();
+
         CmdLine cmdLine = new CmdLine();
 
         cmdLine.parse(args);

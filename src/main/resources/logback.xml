@@ -1,0 +1,20 @@
+<configuration>
+    <appender name="jsonConsoleAppender" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+    </appender>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <!-- encoders are assigned the type
+             ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="org.jitsi.videobridge.xmpp.ComponentImpl" level="TRACE"/>
+    <logger name="org.jitsi.impl.neomedia.MediaStreamImpl" level="WARNING"/>
+
+    <root level="INFO">
+        <appender-ref ref="jsonConsoleAppender"/>
+<!--        <appender-ref ref="STDOUT" />-->
+    </root>
+</configuration>
