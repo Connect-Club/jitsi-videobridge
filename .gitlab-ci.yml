@@ -1,0 +1,26 @@
+.packer-build:
+  image: curlimages/curl:7.69.1
+  variables:
+    GOOGLE_TOKEN: "${GCP_TOKEN}"
+    GIT_URL: git_url
+    GIT_SHA: $CI_COMMIT_SHA
+  script:
+  - |
+    cd packer
+    sh get_packer.sh
+    echo "${GCP_TOKEN}" > account-videobridge-01.json
+    ./packer build -var 'git_url=$GIT_URL' -var 'GIT_SHA=$GIT_SHA' jitsi-bridge_vb-01.json \
+    && curl -s -X POST -H 'Content-type: application/json' \
+    --data "{\"text\": \"Образ *$CI_PROJECT_TITLE* \`videobridge-$GIT_SHA\` успешно создан\"}" \
+    $SLACK_WEBHOOK_URL \
+    || curl -s -X POST -H 'Content-type: application/json' \
+    --data "{\"text\": \"⛔️Сборка образа *$CI_PROJECT_TITLE* \`videobridge-$GIT_SHA\` провалилась:\n$CI_PIPELINE_URL\"}" \
+    $SLACK_WEBHOOK_URL
+  when: manual
+  tags:
+  - support-cluster-runner
+
+build-image:
+  extends: .packer-build
+  variables:
+    GIT_URL: $GIT_URL

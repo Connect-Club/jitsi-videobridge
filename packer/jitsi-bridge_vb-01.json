@@ -1,0 +1,33 @@
+{
+  "variables": {
+    "git_url": "giturl",
+    "git_sha": "master"
+  },
+  "builders": [
+    {
+      "type": "googlecompute",
+      "account_file": "account-videobridge-01.json",
+      "project_id": "videobridge-01",
+      "machine_type": "n1-standard-1",
+      "zone": "europe-west1-b",
+      "source_image_family": "ubuntu-1804-lts",
+      "ssh_username": "packer",
+      "disk_size": "10",
+      "instance_name": "jitsi-vb-builder",
+      "subnetwork": "videobridge-01-subnet",
+      "image_name": "videobridge-{{ user `git_sha` }}"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "scripts": [
+        "jitsi-bridge.sh"
+      ],
+      "environment_vars": [
+        "GIT_URL={{ user `git_url` }}",
+        "GIT_SHA={{ user `git_sha` }}"
+      ]
+    }
+  ]
+}
