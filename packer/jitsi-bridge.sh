@@ -27,6 +27,6 @@ sudo apt purge git -y
 # WantedBy=multi-user.target
 # EOF
 
-# sudo mv videobridge.service /etc/systemd/system/videobridge.service
+sudo mv /tmp/videobridge.service /etc/systemd/system/videobridge.service
 sudo chmod 0644 /etc/systemd/system/videobridge.service
 sudo systemctl start videobridge

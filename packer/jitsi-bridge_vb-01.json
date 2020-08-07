@@ -22,7 +22,7 @@
     {
       "type": "file",
       "source": "videobridge.service",
-      "destination": "/etc/systemd/system/videobridge.service"
+      "destination": "/tmp/videobridge.service"
     },
     {
       "type": "shell",
