@@ -1,18 +1,23 @@
 #!/bin/bash
+set -e
 sudo apt update
-sudo apt install openjdk-11-jdk openjdk-11-jre git -y
+sudo apt install openjdk-8-jdk openjdk-8-jre git unzip -y
 java -version
 
 cd
 git clone $GIT_URL
-cd connect-club-videobridge/
+cd jitsi-videobridge/
 git checkout $GIT_SHA
-./gradlew clean assemble
-sudo cp build/libs/connect-club-videobridge-0.0.1-SNAPSHOT.jar /opt/connect-club-videobridge.jar
+curl https://apache-mirror.rbc.ru/pub/apache/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.zip -o maven.zip
+unzip  maven.zip
+apache-maven-3.6.3/bin/mvn clean package
+sudo unzip target/jitsi-videobridge.docker.zip -d /opt
 cd ..
-rm -rf connect-club-videobridge
+rm -rf jitsi-videobridge
 sudo apt purge git -y
 
 sudo mv /tmp/videobridge.service /etc/systemd/system/videobridge.service
 sudo chmod 0644 /etc/systemd/system/videobridge.service
 sudo systemctl start videobridge
+sleep 5
+sudo systemctl status videobridge

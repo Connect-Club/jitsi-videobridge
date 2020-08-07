@@ -3,7 +3,8 @@ Description=Videobridge
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/java -jar /opt/connect-club-videobridge.jar
+Environment="JAVA_SYS_PROPS=-Dorg.ice4j.ice.harvest.STUN_MAPPING_HARVESTER_ADDRESSES=meet-jit-si-turnrelay.jitsi.net:443"
+ExecStart=/bin/bash /opt/jvb.docker.sh --apis=rest
 User=nobody
 
 [Install]
