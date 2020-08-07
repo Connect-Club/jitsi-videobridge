@@ -1,7 +1,7 @@
 #!/bin/bash
 #set -e
 sudo apt update
-sudo apt install openjdk-8-jdk openjdk-8-jre git -y
+sudo apt install openjdk-11-jdk openjdk-11-jre git -y
 java -version
 
 cd
