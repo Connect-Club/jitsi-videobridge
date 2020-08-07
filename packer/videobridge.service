@@ -1,0 +1,10 @@
+[Unit]
+Description=Videobridge
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/java -jar /opt/connect-club-videobridge.jar
+User=nobody
+
+[Install]
+WantedBy=multi-user.target

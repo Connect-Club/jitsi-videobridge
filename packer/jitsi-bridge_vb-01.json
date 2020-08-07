@@ -20,6 +20,11 @@
   ],
   "provisioners": [
     {
+      "type": "file",
+      "source": "videobridge.service",
+      "destination": "/etc/systemd/system/videobridge.service"
+    },
+    {
       "type": "shell",
       "scripts": [
         "jitsi-bridge.sh"

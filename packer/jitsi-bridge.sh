@@ -14,19 +14,19 @@ cd ..
 rm -rf connect-club-videobridge
 sudo apt purge git -y
 
-sudo cat > videobridge.service <<EOF
-[Unit]
-Description=Videobridge
-After=network.target
+# sudo cat > videobridge.service <<EOF
+# [Unit]
+# Description=Videobridge
+# After=network.target
 
-[Service]
-ExecStart=/usr/bin/java -jar /opt/connect-club-videobridge.jar
-User=nobody
+# [Service]
+# ExecStart=/usr/bin/java -jar /opt/connect-club-videobridge.jar
+# User=nobody
 
-[Install]
-WantedBy=multi-user.target
-EOF
+# [Install]
+# WantedBy=multi-user.target
+# EOF
 
-sudo mv videobridge.service /etc/systemd/system/videobridge.service
+# sudo mv videobridge.service /etc/systemd/system/videobridge.service
 sudo chmod 0644 /etc/systemd/system/videobridge.service
 sudo systemctl start videobridge
