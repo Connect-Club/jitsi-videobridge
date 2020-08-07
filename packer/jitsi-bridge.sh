@@ -1,5 +1,4 @@
 #!/bin/bash
-#set -e
 sudo apt update
 sudo apt install openjdk-11-jdk openjdk-11-jre git -y
 java -version
@@ -13,19 +12,6 @@ sudo cp build/libs/connect-club-videobridge-0.0.1-SNAPSHOT.jar /opt/connect-club
 cd ..
 rm -rf connect-club-videobridge
 sudo apt purge git -y
-
-# sudo cat > videobridge.service <<EOF
-# [Unit]
-# Description=Videobridge
-# After=network.target
-
-# [Service]
-# ExecStart=/usr/bin/java -jar /opt/connect-club-videobridge.jar
-# User=nobody
-
-# [Install]
-# WantedBy=multi-user.target
-# EOF
 
 sudo mv /tmp/videobridge.service /etc/systemd/system/videobridge.service
 sudo chmod 0644 /etc/systemd/system/videobridge.service
