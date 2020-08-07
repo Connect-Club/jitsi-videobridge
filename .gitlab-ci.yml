@@ -3,13 +3,13 @@
   variables:
     GOOGLE_TOKEN: "${GCP_TOKEN}"
     GIT_URL: git_url
-    GIT_SHA: $CI_COMMIT_SHA
+    GIT_SHA: $CI_COMMIT_SHORT_SHA
   script:
   - |
     cd packer
     sh get_packer.sh
     echo "${GOOGLE_TOKEN}" > account-videobridge-01.json
-    ./packer build -var 'git_url=$GIT_URL' -var 'GIT_SHA=$GIT_SHA' jitsi-bridge_vb-01.json \
+    ./packer build -var 'git_url=$GIT_URL' -var 'git_sha=$GIT_SHA' jitsi-bridge_vb-01.json \
     && curl -s -X POST -H 'Content-type: application/json' \
     --data "{\"text\": \"Образ *$CI_PROJECT_TITLE* \`videobridge-$GIT_SHA\` успешно создан\"}" \
     $SLACK_WEBHOOK_URL \
