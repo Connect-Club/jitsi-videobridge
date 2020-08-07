@@ -8,7 +8,7 @@
   - |
     cd packer
     sh get_packer.sh
-    echo "${GCP_TOKEN}" > account-videobridge-01.json
+    echo "${GOOGLE_TOKEN}" > account-videobridge-01.json
     ./packer build -var 'git_url=$GIT_URL' -var 'GIT_SHA=$GIT_SHA' jitsi-bridge_vb-01.json \
     && curl -s -X POST -H 'Content-type: application/json' \
     --data "{\"text\": \"Образ *$CI_PROJECT_TITLE* \`videobridge-$GIT_SHA\` успешно создан\"}" \
