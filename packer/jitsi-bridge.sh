@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
+echo "sleeping..."
+sleep 60
 sudo apt-get update
-sleep 2
 sudo apt-get install openjdk-8-jdk openjdk-8-jre git libarchive-tools -y
 java -version
 
