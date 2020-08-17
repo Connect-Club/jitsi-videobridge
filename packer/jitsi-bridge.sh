@@ -18,6 +18,7 @@ sudo apt purge git -y
 
 sudo mv /tmp/videobridge.service /etc/systemd/system/videobridge.service
 sudo chmod 0644 /etc/systemd/system/videobridge.service
+sudo systemctl enable videobridge.service
 sudo systemctl start videobridge
 sleep 5
 sudo systemctl status videobridge
