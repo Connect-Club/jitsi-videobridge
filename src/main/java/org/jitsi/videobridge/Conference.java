@@ -46,6 +46,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 import java.util.logging.*;
+import java.util.stream.Collectors;
 
 import static org.jitsi.utils.collections.JMap.entry;
 import static org.jitsi.videobridge.EndpointMessageBuilder.*;
@@ -969,6 +970,13 @@ public class Conference
         if (removedEndpoint != null)
         {
             updateEndpointsCache();
+            endpoints.values()
+                    .forEach(e -> {
+                        Set<String> newPinnedEndpoints = e.pinnedEndpoints.stream()
+                                .filter(x -> !x.equals(endpoint.getID()))
+                                .collect(Collectors.toSet());
+                        e.pinnedEndpointsChanged(newPinnedEndpoints);
+                    });
         }
 
         if (tentacle != null)
@@ -1012,6 +1020,13 @@ public class Conference
             logger.info("Endpoint with id " + endpoint.getID() + ": " +
                 replacedEndpoint + " has been replaced by new " +
                 "endpoint with same id: " + endpoint);
+            endpoints.values()
+                    .forEach(e -> {
+                        Set<String> newPinnedEndpoints = e.pinnedEndpoints.stream()
+                                .filter(x -> !x.equals(endpoint.getID()))
+                                .collect(Collectors.toSet());
+                        e.pinnedEndpointsChanged(newPinnedEndpoints);
+                    });
         }
     }
 
