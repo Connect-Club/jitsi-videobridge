@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
-sudo apt update
-sudo apt install openjdk-8-jdk openjdk-8-jre git unzip -y
+sudo apt-get update
+sleep 2
+sudo apt-get install openjdk-8-jdk openjdk-8-jre git unzip -y
 java -version
 
 cd
@@ -14,7 +15,7 @@ apache-maven-3.6.3/bin/mvn clean package
 sudo unzip target/jitsi-videobridge.docker.zip -d /opt
 cd ..
 rm -rf jitsi-videobridge
-sudo apt purge git -y
+sudo apt-get purge git -y
 
 sudo mv /tmp/videobridge.service /etc/systemd/system/videobridge.service
 sudo chmod 0644 /etc/systemd/system/videobridge.service
