@@ -25,6 +25,11 @@
       "destination": "/tmp/videobridge.service"
     },
     {
+      "type": "file",
+      "source": "95-kibana.conf",
+      "destination": "/tmp/95-kibana.conf"
+    },
+    {
       "type": "shell",
       "scripts": [
         "jitsi-bridge.sh"

@@ -18,6 +18,7 @@ cd ..
 rm -rf jitsi-videobridge
 sudo apt-get purge git -y
 
+sudo mv /tmp/95-kibana.conf /etc/rsyslog.d/95-kibana.conf
 sudo mv /tmp/videobridge.service /etc/systemd/system/videobridge.service
 sudo chmod 0644 /etc/systemd/system/videobridge.service
 sudo systemctl enable videobridge.service
