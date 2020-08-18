@@ -19,8 +19,9 @@ rm -rf jitsi-videobridge
 sudo apt-get purge git -y
 
 sudo mv /tmp/95-kibana.conf /etc/rsyslog.d/95-kibana.conf
-sudo mv /tmp/videobridge.service /etc/systemd/system/videobridge.service
-sudo chmod 0644 /etc/systemd/system/videobridge.service
+sudo mv /tmp/videobridge.service /lib/systemd/system
+sudo chmod 0644 /lib/systemd/system/videobridge.service
+sudo ln -s /lib/systemd/system/videobridge.service /etc/systemd/system/multi-user.target.wants/
 sudo systemctl enable videobridge.service
 sudo systemctl start videobridge
 sleep 5
