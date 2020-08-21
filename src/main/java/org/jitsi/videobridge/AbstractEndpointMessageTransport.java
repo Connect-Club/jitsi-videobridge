@@ -477,7 +477,7 @@ public abstract class AbstractEndpointMessageTransport
      */
     public void onMessage(Object src, String msg)
     {
-        logger.info("Message received:\n" + msg);
+        logger.trace("Message received:\n" + msg);
         Object obj;
         JSONParser parser = new JSONParser(); // JSONParser is NOT thread-safe.
 

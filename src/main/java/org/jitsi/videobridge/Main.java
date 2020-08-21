@@ -15,12 +15,14 @@
  */
 package org.jitsi.videobridge;
 
-import org.jitsi.cmd.*;
-import org.jitsi.config.*;
-import org.jitsi.meet.*;
-import org.jitsi.videobridge.osgi.*;
-import org.jitsi.videobridge.xmpp.*;
+import org.jitsi.cmd.CmdLine;
+import org.jitsi.config.JitsiConfig;
+import org.jitsi.meet.ComponentMain;
+import org.jitsi.videobridge.osgi.BundleConfig;
+import org.jitsi.videobridge.xmpp.ComponentImpl;
 import org.slf4j.bridge.SLF4JBridgeHandler;
+
+import java.util.logging.LogManager;
 
 /**
  * Provides the <tt>main</tt> entry point of the Jitsi Videobridge application
@@ -100,8 +102,10 @@ public class Main
     public static void main(String[] args)
         throws Exception
     {
+        //---------install jul-to-slf4j---------
         SLF4JBridgeHandler.removeHandlersForRootLogger();
-        SLF4JBridgeHandler.install();
+        LogManager.getLogManager().getLogger("").addHandler(new CustomSLF4JBridgeHandler());
+        //--------------------------------------
 
         CmdLine cmdLine = new CmdLine();
 

@@ -1,4 +1,8 @@
 <configuration>
+    <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
+        <resetJUL>true</resetJUL>
+    </contextListener>
+
     <appender name="jsonConsoleAppender" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
     </appender>
@@ -10,11 +14,12 @@
         </encoder>
     </appender>
 
-    <logger name="org.jitsi.videobridge.xmpp.ComponentImpl" level="TRACE"/>
-    <logger name="org.jitsi.impl.neomedia.MediaStreamImpl" level="WARNING"/>
-
     <root level="INFO">
         <appender-ref ref="jsonConsoleAppender"/>
 <!--        <appender-ref ref="STDOUT" />-->
     </root>
+
+    <logger name="org.jitsi.videobridge.xmpp.ComponentImpl" level="TRACE"></logger>
+    <logger name="org.jitsi.impl.neomedia.MediaStreamImpl" level="WARNING"></logger>
+    <logger name="org.jitsi.videobridge.EndpointMessageTransport" level="TRACE"></logger>
 </configuration>
