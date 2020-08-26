@@ -70,6 +70,9 @@ public class BundleConfig
         },
         {
             "org/jitsi/videobridge/EndpointConnectionStatus"
+        },
+        {
+            "org/jitsi/videobridge/NotificationsHandler"
         }
     };
 
