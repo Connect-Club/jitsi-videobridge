@@ -3,12 +3,14 @@ package org.jitsi.videobridge;
 import com.google.common.collect.ImmutableMap;
 import okhttp3.*;
 import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.annotations.NotNull;
 import org.jitsi.eventadmin.Event;
 import org.jitsi.osgi.EventHandlerActivator;
 import org.jitsi.utils.logging2.Logger;
 import org.jitsi.utils.logging2.LoggerImpl;
 import org.json.simple.JSONObject;
 
+import java.io.IOException;
 import java.util.concurrent.ForkJoinPool;
 
 @SuppressWarnings("unused") // started by OSGi
@@ -105,16 +107,22 @@ public class NotificationsHandler extends EventHandlerActivator {
                 notification.put("endpoint", endpoint.getID());
             }
 
-            RequestBody body = RequestBody.create(notification.toJSONString(), JSON);
             Request request = new Request.Builder()
                     .url(notificationUrl)
-                    .post(body)
+                    .post(RequestBody.create(notification.toJSONString(), JSON))
                     .build();
-            try (Response response = okHttpClient.newCall(request).execute()) {
-                logger.info(response.body().string());
-            } catch (Exception e) {
-                logger.error("External system notification error", e);
-            }
+
+            okHttpClient.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                    logger.error("External system notification error", e);
+                }
+
+                @Override
+                public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                    logger.info(response.body().string());
+                }
+            });
         }
     }
 }
