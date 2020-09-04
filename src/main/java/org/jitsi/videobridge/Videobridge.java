@@ -272,15 +272,22 @@ public class Videobridge
             {
                 if (!conferences.containsKey(id))
                 {
-                    conference
-                        = new Conference(
+                    conference = conferences.values().stream()
+                            .filter(x -> Objects.equals(x.getGid(), gid))
+                            .findFirst().orElse(null);
+                    if(conference == null) {
+                        conference
+                                = new Conference(
                                 this,
                                 id,
                                 focus,
                                 name,
                                 enableLogging,
                                 gid);
-                    conferences.put(id, conference);
+                        conferences.put(id, conference);
+                    } else {
+                        logger.warn("Conference with gid=" + gid + " already exists");
+                    }
                 }
             }
         }
