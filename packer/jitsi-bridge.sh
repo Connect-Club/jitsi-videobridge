@@ -3,7 +3,7 @@ set -e
 echo "sleeping..."
 sleep 60
 sudo apt-get update
-sudo apt-get install openjdk-8-jdk openjdk-8-jre git unzip -y
+sudo apt-get install openjdk-8-jdk openjdk-8-jre git unzip prometheus-node-exporter -y
 java -version
 
 cd
