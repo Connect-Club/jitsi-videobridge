@@ -177,8 +177,11 @@ public class EndpointConnectionStatus
             Arrays.stream(conferences)
                 .forEachOrdered(
                     conference ->
-                        conference.getEndpoints()
-                            .forEach(this::monitorEndpointActivity));
+                        conference.getEndpoints().stream()
+                                .filter(endpoint -> endpoint instanceof Endpoint)
+                                .map(endpoint -> (Endpoint)endpoint)
+                                .filter(Endpoint::allowIncomingVideoOrAudio) //do not send colibri notifications for sending-only-media endpoints
+                                .forEach(this::monitorEndpointActivity));
         }
     }
 

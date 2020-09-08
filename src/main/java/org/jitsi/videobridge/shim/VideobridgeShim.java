@@ -42,37 +42,6 @@ public class VideobridgeShim
     private static final Logger logger = new LoggerImpl(VideobridgeShim.class.getName());
 
     /**
-     * This method collects all of the channel bundle IDs referenced in the
-     * given IQ.
-     * @param conferenceIq
-     * @return
-     */
-    private static Set<String> getAllSignaledChannelBundleIds(
-            ColibriConferenceIQ conferenceIq)
-    {
-        Set<String> channelBundleIds = new HashSet<>();
-        for (ColibriConferenceIQ.Content contentIq : conferenceIq.getContents())
-        {
-            for (ColibriConferenceIQ.Channel channelIq : contentIq.getChannels())
-            {
-                channelBundleIds.add(channelIq.getChannelBundleId());
-            }
-            for (ColibriConferenceIQ.SctpConnection sctpConnIq
-                    : contentIq.getSctpConnections())
-            {
-                channelBundleIds.add(sctpConnIq.getChannelBundleId());
-            }
-        }
-
-        for (ColibriConferenceIQ.ChannelBundle channelBundleIq
-                : conferenceIq.getChannelBundles())
-        {
-            channelBundleIds.add(channelBundleIq.getId());
-        }
-        return channelBundleIds;
-    }
-
-    /**
      * Checks if a {@link ColibriConferenceIQ.Channel} refers to an Octo
      * channel.
      *
@@ -423,9 +392,7 @@ public class VideobridgeShim
             endpoint.setTransportInfo(transportIq);
         }
 
-        conferenceShim.describeChannelBundles(
-            responseConferenceIQ,
-            getAllSignaledChannelBundleIds(conferenceIQ));
+        conferenceShim.describeChannelBundles(responseConferenceIQ);
 
         // Update the endpoint information of Videobridge with the endpoint
         // information of the IQ.

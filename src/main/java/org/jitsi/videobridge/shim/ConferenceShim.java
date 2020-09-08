@@ -108,23 +108,17 @@ public class ConferenceShim
     /**
      * Describes the channel bundles of this conference in a Colibri IQ.
      * @param iq the IQ to describe in.
-     * @param endpointIds the list of IDs to describe.
      */
-    void describeChannelBundles(
-            ColibriConferenceIQ iq,
-            Set<String> endpointIds)
+    void describeChannelBundles(ColibriConferenceIQ iq)
     {
         for (AbstractEndpoint endpoint : conference.getEndpoints())
         {
             String endpointId = endpoint.getID();
-            if (endpointIds.contains(endpointId))
-            {
-                ColibriConferenceIQ.ChannelBundle responseBundleIQ
+            ColibriConferenceIQ.ChannelBundle responseBundleIQ
                     = new ColibriConferenceIQ.ChannelBundle(endpointId);
-                endpoint.describe(responseBundleIQ);
+            endpoint.describe(responseBundleIQ);
 
-                iq.addChannelBundle(responseBundleIQ);
-            }
+            iq.addChannelBundle(responseBundleIQ);
         }
     }
 
@@ -201,7 +195,8 @@ public class ConferenceShim
                 }
             }
         }
-        // Do we also want endpoint-s anc channel-bundle-id-s?
+        describeEndpoints(iq);
+        describeChannelBundles(iq);
     }
 
     /**

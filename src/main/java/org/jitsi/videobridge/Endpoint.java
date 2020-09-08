@@ -225,7 +225,7 @@ public class Endpoint
      * Whether or not the bridge should be the peer which opens the data channel
      * (as opposed to letting the far peer/client open it).
      */
-    private static final boolean OPEN_DATA_LOCALLY = false;
+    private static final boolean OPEN_DATA_LOCALLY = true;
 
     /**
      * The executor which runs bandwidth probing.
@@ -1619,5 +1619,11 @@ public class Endpoint
         // The endpoint is sending video if we (the transceiver) are receiving
         // video.
         return transceiver.isReceivingVideo();
+    }
+
+    public boolean allowIncomingVideoOrAudio() {
+        return channelShims.stream()
+                .filter(x -> x.getMediaType() == MediaType.AUDIO || x.getMediaType() == MediaType.VIDEO)
+                .allMatch(ChannelShim::allowIncomingMedia);
     }
 }
