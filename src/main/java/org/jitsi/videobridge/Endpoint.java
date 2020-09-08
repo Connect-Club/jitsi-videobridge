@@ -1621,9 +1621,9 @@ public class Endpoint
         return transceiver.isReceivingVideo();
     }
 
-    public boolean allowIncomingVideoOrAudio() {
+    public boolean shadow() {
         return channelShims.stream()
                 .filter(x -> x.getMediaType() == MediaType.AUDIO || x.getMediaType() == MediaType.VIDEO)
-                .allMatch(ChannelShim::allowIncomingMedia);
+                .noneMatch(ChannelShim::allowIncomingMedia);
     }
 }

@@ -104,6 +104,7 @@ public class NotificationsHandler extends EventHandlerActivator {
                     "conferenceGid", conference.getGid()
             ));
             if (endpoint != null) {
+                if(endpoint.shadow()) return;
                 notification.put("endpoint", endpoint.getID());
             }
 

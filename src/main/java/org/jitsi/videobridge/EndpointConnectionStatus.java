@@ -177,10 +177,7 @@ public class EndpointConnectionStatus
             Arrays.stream(conferences)
                 .forEachOrdered(
                     conference ->
-                        conference.getEndpoints().stream()
-                                .filter(endpoint -> endpoint instanceof Endpoint)
-                                .map(endpoint -> (Endpoint)endpoint)
-                                .filter(Endpoint::allowIncomingVideoOrAudio) //do not send colibri notifications for sending-only-media endpoints
+                        conference.getEndpoints()
                                 .forEach(this::monitorEndpointActivity));
         }
     }
@@ -199,6 +196,9 @@ public class EndpointConnectionStatus
         }
 
         Endpoint endpoint = (Endpoint) abstractEndpoint;
+        if(endpoint.shadow()) {
+            return;
+        }
         String endpointId = endpoint.getID();
 
         Instant now = clock.instant();
