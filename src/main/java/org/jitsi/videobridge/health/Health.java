@@ -62,7 +62,7 @@ public class Health
         {
             final boolean iceControlling = i % 2 == 0;
             final Endpoint endpoint = conference.createLocalEndpoint(
-                generateEndpointID(), iceControlling);
+                generateEndpointID(), iceControlling, false);
 
             //endpoints.add(endpoint);
 
