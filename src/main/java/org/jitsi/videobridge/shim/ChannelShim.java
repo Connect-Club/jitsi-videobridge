@@ -191,7 +191,7 @@ public class ChannelShim
         this.expire = expire;
         if (expire == 0)
         {
-            if(contentShim.getMediaType() == MediaType.DATA && !endpoint.shadow()) {
+            if(contentShim.getMediaType() == MediaType.DATA && !endpoint.isShadow()) {
                 endpoint.sendMessage(EndpointMessageBuilder.createEndpointExpiredEvent(endpoint.getID()));
             }
             expired = true;

@@ -221,6 +221,8 @@ public class Endpoint
      */
     private final Clock clock;
 
+    private final boolean shadow;
+
     /**
      * Whether or not the bridge should be the peer which opens the data channel
      * (as opposed to letting the far peer/client open it).
@@ -265,10 +267,12 @@ public class Endpoint
         Conference conference,
         Logger parentLogger,
         boolean iceControlling,
+        boolean shadow,
         Clock clock)
     {
         super(conference, id, parentLogger);
 
+        this.shadow = shadow;
         this.clock = clock;
 
         creationTime = clock.instant();
@@ -351,9 +355,10 @@ public class Endpoint
         String id,
         Conference conference,
         Logger parentLogger,
-        boolean iceControlling)
+        boolean iceControlling,
+        boolean shadow)
     {
-        this(id, conference, parentLogger, iceControlling, Clock.systemUTC());
+        this(id, conference, parentLogger, iceControlling, shadow, Clock.systemUTC());
     }
 
     /**
@@ -1621,9 +1626,7 @@ public class Endpoint
         return transceiver.isReceivingVideo();
     }
 
-    public boolean shadow() {
-        return channelShims.stream()
-                .filter(x -> x.getMediaType() == MediaType.AUDIO || x.getMediaType() == MediaType.VIDEO)
-                .noneMatch(ChannelShim::allowIncomingMedia);
+    public boolean isShadow() {
+        return shadow;
     }
 }

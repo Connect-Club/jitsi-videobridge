@@ -671,7 +671,7 @@ public class Conference
      * @return an <tt>Endpoint</tt> participating in this <tt>Conference</tt>
      */
     @NotNull
-    public Endpoint createLocalEndpoint(String id, boolean iceControlling)
+    public Endpoint createLocalEndpoint(String id, boolean iceControlling, boolean shadow)
     {
         final AbstractEndpoint existingEndpoint = getEndpoint(id);
         if (existingEndpoint instanceof OctoEndpoint)
@@ -691,7 +691,7 @@ public class Conference
         }
 
         final Endpoint endpoint = new Endpoint(
-            id, this, logger, iceControlling);
+            id, this, logger, iceControlling, shadow);
         // The propertyChangeListener will weakly reference this
         // Conference and will unregister itself from the endpoint
         // sooner or later.

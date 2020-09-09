@@ -196,7 +196,7 @@ public class EndpointConnectionStatus
         }
 
         Endpoint endpoint = (Endpoint) abstractEndpoint;
-        if(endpoint.shadow()) {
+        if(endpoint.isShadow()) {
             return;
         }
         String endpointId = endpoint.getID();

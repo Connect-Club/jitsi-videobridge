@@ -274,33 +274,38 @@ public class ConferenceShim
     void initializeSignaledEndpoints(ColibriConferenceIQ conferenceIQ)
         throws VideobridgeShim.IqProcessingException
     {
-        List<ColibriConferenceIQ.ChannelCommon> nonExpiredChannels
+        Map<String,List<ColibriConferenceIQ.ChannelCommon>> nonExpiredChannels
             = conferenceIQ.getContents().stream()
-                .map(content ->
+                .flatMap(content ->
                         Stream.concat(
                                 content.getChannels().stream(),
-                                content.getSctpConnections().stream()))
-                .flatMap(Function.identity())
+                                content.getSctpConnections().stream()
+                        )
+                )
                 .filter(c -> c.getEndpoint() != null && c.getExpire() != 0)
-                .collect(Collectors.toList());
+                .collect(Collectors.groupingBy(ColibriConferenceIQ.ChannelCommon::getEndpoint));
 
-        for (ColibriConferenceIQ.ChannelCommon c : nonExpiredChannels)
+        for (String endpoint : nonExpiredChannels.keySet())
         {
-            ensureEndpointCreated(
-                c.getEndpoint(),
-                Boolean.TRUE.equals(c.isInitiator()));
+            List<ColibriConferenceIQ.ChannelCommon> channels = nonExpiredChannels.get(endpoint);
+            boolean iceControlling = channels.stream().anyMatch(x->Boolean.TRUE.equals(x.isInitiator()));
+            boolean shadow = channels.stream()
+                    .filter(x -> x instanceof ColibriConferenceIQ.Channel)
+                    .map(x -> (ColibriConferenceIQ.Channel)x)
+                    .allMatch(x -> "sendonly".equals(x.getDirection()));
+            ensureEndpointCreated(endpoint, iceControlling, shadow);
         }
 
         for (ColibriConferenceIQ.ChannelBundle channelBundle
             : conferenceIQ.getChannelBundles())
         {
-            ensureEndpointCreated(channelBundle.getId(), false);
+            ensureEndpointCreated(channelBundle.getId(), false, false);
         }
 
         for (ColibriConferenceIQ.Endpoint endpoint
             : conferenceIQ.getEndpoints())
         {
-            ensureEndpointCreated(endpoint.getId(), false);
+            ensureEndpointCreated(endpoint.getId(), false, false);
         }
     }
 
@@ -311,14 +316,14 @@ public class ConferenceShim
      * @param iceControlling ICE control role of transport of newly created
      * endpoint
      */
-    private void ensureEndpointCreated(String endpointId, boolean iceControlling)
+    private void ensureEndpointCreated(String endpointId, boolean iceControlling, boolean shadow)
     {
         if (conference.getLocalEndpoint(endpointId) != null)
         {
             return;
         }
 
-        conference.createLocalEndpoint(endpointId, iceControlling);
+        conference.createLocalEndpoint(endpointId, iceControlling, shadow);
     }
 
     /**

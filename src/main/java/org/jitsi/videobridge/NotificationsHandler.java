@@ -104,13 +104,18 @@ public class NotificationsHandler extends EventHandlerActivator {
                     "conferenceGid", conference.getGid()
             ));
             if (endpoint != null) {
-                if(endpoint.shadow()) return;
-                notification.put("endpoint", endpoint.getID());
+                if(endpoint.isShadow()) return;
+                notification.put("endpointId", endpoint.getID());
+                notification.put("endpointUuid", endpoint.getUuid());
             }
+
+            String notificationStr = notification.toJSONString();
+
+            logger.info("Sending notification " + notificationStr);
 
             Request request = new Request.Builder()
                     .url(notificationUrl)
-                    .post(RequestBody.create(notification.toJSONString(), JSON))
+                    .post(RequestBody.create(notificationStr, JSON))
                     .build();
 
             okHttpClient.newCall(request).enqueue(new Callback() {

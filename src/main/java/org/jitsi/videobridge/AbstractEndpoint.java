@@ -64,6 +64,8 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
      */
     private final String id;
 
+    private final UUID uuid;
+
     /**
      * The {@link Logger} used by the {@link Endpoint} class to print debug
      * information.
@@ -163,6 +165,7 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
         context.put("epId", id);
         logger = parentLogger.createChildLogger(this.getClass().getName(), context);
         this.id = Objects.requireNonNull(id, "id");
+        this.uuid = UUID.randomUUID();
     }
 
     /**
@@ -238,6 +241,10 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
     public final String getID()
     {
         return id;
+    }
+
+    public final UUID getUuid() {
+        return uuid;
     }
 
     /**
