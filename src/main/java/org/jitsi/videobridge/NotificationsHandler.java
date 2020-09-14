@@ -106,7 +106,7 @@ public class NotificationsHandler extends EventHandlerActivator {
             if (endpoint != null) {
                 if(endpoint.isShadow()) return;
                 notification.put("endpointId", endpoint.getID());
-                notification.put("endpointUuid", endpoint.getUuid());
+                notification.put("endpointUuid", endpoint.getUuid().toString());
             }
 
             String notificationStr = notification.toJSONString();
