@@ -30,6 +30,8 @@ import javax.inject.*;
 import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 import java.util.*;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 @Path("/colibri/conferences")
 public class Conferences extends ColibriResource
@@ -194,5 +196,32 @@ public class Conferences extends ColibriResource
         }
 
         return responseJson.toJSONString();
+    }
+
+    @POST
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/{confId}/broadcast-message/{colibriClass}")
+    public void broadcastMessage(@PathParam("confId") String confId, @PathParam("colibriClass") String colibriClass, String requestBody) {
+        Conference conference
+                = videobridgeProvider.get().getConference(confId, null);
+
+        if (conference == null)
+        {
+            throw new NotFoundException();
+        }
+        JSONObject msgMap;
+        try
+        {
+            msgMap = (JSONObject) new JSONParser().parse(requestBody);
+        } catch (ParseException e) {
+            throw new BadRequestExceptionWithMessage("Could not parse JSON: " + e.getMessage());
+        }
+
+        List<AbstractEndpoint> nonShadowEndpoints = conference.getEndpoints().stream()
+                .filter(x -> x instanceof Endpoint)
+                .map(x -> (Endpoint) x)
+                .filter(x -> !x.isShadow())
+                .collect(Collectors.toList());
+        conference.sendMessage(EndpointMessageBuilder.createCustomMessage(colibriClass, msgMap), nonShadowEndpoints);
     }
 }

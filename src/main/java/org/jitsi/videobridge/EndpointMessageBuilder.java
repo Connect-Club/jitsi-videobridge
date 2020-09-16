@@ -214,6 +214,15 @@ public class EndpointMessageBuilder
         ));
     }
 
+    public static String createCustomMessage(String colibriClass, Map<String, String> msg) {
+        if(msg.containsKey("colibriClass")) {
+            throw new RuntimeException("Message already contains `colibriClass` field");
+        }
+        JSONObject jsonMessage = new JSONObject(Collections.singletonMap("colibriClass", colibriClass));
+        jsonMessage.putAll(msg);
+        return jsonMessage.toJSONString();
+    }
+
 
     /**
      * Returns a JSON array representation of a collection of strings.
