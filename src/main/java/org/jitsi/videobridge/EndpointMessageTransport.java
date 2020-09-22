@@ -15,19 +15,24 @@
  */
 package org.jitsi.videobridge;
 
-import org.jetbrains.annotations.*;
-import org.jitsi.utils.logging2.*;
-import org.jitsi.videobridge.datachannel.*;
-import org.jitsi.videobridge.datachannel.protocol.*;
-import org.jitsi.videobridge.websocket.*;
-import org.json.simple.*;
+import org.jetbrains.annotations.NotNull;
+import org.jitsi.utils.logging2.Logger;
+import org.jitsi.videobridge.datachannel.DataChannel;
+import org.jitsi.videobridge.datachannel.DataChannelStack;
+import org.jitsi.videobridge.datachannel.protocol.DataChannelMessage;
+import org.jitsi.videobridge.datachannel.protocol.DataChannelStringMessage;
+import org.jitsi.videobridge.websocket.ColibriWebSocket;
+import org.json.simple.JSONObject;
 
-import java.lang.ref.*;
-import java.util.*;
-import java.util.concurrent.atomic.*;
-import java.util.function.*;
+import java.lang.ref.WeakReference;
+import java.util.Collections;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
-import static org.jitsi.videobridge.EndpointMessageBuilder.*;
+import static org.jitsi.videobridge.EndpointMessageBuilder.createServerHelloEvent;
 
 /**
  * Handles the functionality related to sending and receiving COLIBRI messages
@@ -229,6 +234,8 @@ class EndpointMessageTransport
         }
     }
 
+    private final Queue<String> msgQueue = new ConcurrentLinkedQueue<>();
+
     /**
      * {@inheritDoc}
      */
@@ -238,11 +245,16 @@ class EndpointMessageTransport
         Object dst = getActiveTransportChannel();
         if (dst == null)
         {
-            logger.debug("No available transport channel, can't send a message");
-            numOutgoingMessagesDropped.incrementAndGet();
+//            logger.debug("No available transport channel, can't send a message");
+//            numOutgoingMessagesDropped.incrementAndGet();
+            msgQueue.add(msg);
         }
         else
         {
+            String msgFromQueue;
+            while((msgFromQueue = msgQueue.poll()) != null) {
+                sendMessage(dst, msgFromQueue);
+            }
             sendMessage(dst, msg);
         }
     }
