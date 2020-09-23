@@ -311,7 +311,10 @@ public class EndpointConnectionStatus
         if (conference != null)
         {
             String msg = EndpointMessageBuilder.createEndpointExpiredEvent(subjectEndpoint.getID());
-            conference.broadcastMessage(msg);
+            List<AbstractEndpoint> endpoints = conference.getEndpoints().stream()
+                    .filter(x -> !Objects.equals(x.getID(), subjectEndpoint.getID()))
+                    .collect(Collectors.toList());
+            conference.sendMessage(msg, endpoints, false);
         } else {
             logger.warn(
                     "Attempt to send endpoint expired event for"
