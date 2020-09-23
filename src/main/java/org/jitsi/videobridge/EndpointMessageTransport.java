@@ -247,6 +247,7 @@ class EndpointMessageTransport
         {
 //            logger.debug("No available transport channel, can't send a message");
 //            numOutgoingMessagesDropped.incrementAndGet();
+            logger.debug("No available transport channel, putting message to queue");
             msgQueue.add(msg);
         }
         else
