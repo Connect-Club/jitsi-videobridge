@@ -169,7 +169,18 @@ public class Conferences extends ColibriResource
             throw new BadRequestException();
         }
 
-        return getVideobridgeIqResponseAsJson(requestIq, Videobridge.OPTION_ALLOW_NO_FOCUS);
+        //todo: refactor result
+        getVideobridgeIqResponseAsJson(requestIq, Videobridge.OPTION_ALLOW_NO_FOCUS);
+
+
+        ColibriConferenceIQ conferenceIQ = new ColibriConferenceIQ();
+
+        conference.getShim().describeDeep(conferenceIQ);
+
+        JSONObject conferenceJSONObject
+                = JSONSerializer.serializeConference(conferenceIQ);
+
+        return conferenceJSONObject.toJSONString();
     }
 
     private String getVideobridgeIqResponseAsJson(ColibriConferenceIQ request, int options)
