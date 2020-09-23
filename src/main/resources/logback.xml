@@ -15,8 +15,8 @@
     </appender>
 
     <root level="INFO">
-<!--        <appender-ref ref="jsonConsoleAppender"/>-->
-        <appender-ref ref="STDOUT" />
+        <appender-ref ref="jsonConsoleAppender"/>
+<!--        <appender-ref ref="STDOUT" />-->
     </root>
 
     <logger name="org.jitsi.videobridge.xmpp.ComponentImpl" level="TRACE"></logger>
