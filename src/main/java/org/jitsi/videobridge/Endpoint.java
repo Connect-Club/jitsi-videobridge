@@ -916,6 +916,13 @@ public class Endpoint
                             "default");
                     Endpoint.this.messageTransport.setDataChannel(dataChannel);
                     dataChannel.open();
+                    TaskPools.SCHEDULED_POOL.schedule(() -> {
+                        if(!dataChannel.isReady()) {
+                            logger.warn("DataChannel is still not ready. Trying to repeat open data channel");
+                            //maybe for some reason mobile device missed open channel message
+                            dataChannel.open();
+                        }
+                    }, 5, TimeUnit.SECONDS);
                 }
                 else
                 {
