@@ -961,7 +961,8 @@ public class Endpoint
             // accept never returns true).
             logger.info("Attempting to establish SCTP socket connection");
             int attempts = 0;
-            while (!sctpServerSocket.accept())
+            boolean accepted;
+            while (!(accepted = sctpServerSocket.accept()))
             {
                 attempts++;
                 try
@@ -981,7 +982,7 @@ public class Endpoint
             if (logger.isDebugEnabled())
             {
                 logger.debug("SCTP socket " + sctpServerSocket.hashCode() +
-                    " accepted connection.");
+                        (accepted ? " accepted connection." : " did not accept connection."));
             }
         });
     }

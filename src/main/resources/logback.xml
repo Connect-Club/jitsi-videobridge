@@ -23,4 +23,5 @@
     <logger name="org.jitsi.impl.neomedia.MediaStreamImpl" level="WARNING"></logger>
     <logger name="org.jitsi.videobridge.EndpointMessageTransport" level="TRACE"></logger>
     <logger name="org.jitsi.videobridge.datachannel.DataChannel" level="DEBUG"></logger>
+    <logger name="org.jitsi.videobridge.Endpoint" level="DEBUG"></logger>
 </configuration>
