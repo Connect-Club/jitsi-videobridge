@@ -6,6 +6,25 @@
     <appender name="jsonConsoleAppender" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
     </appender>
+
+    <appender name="jsonRollingFileAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>/var/log/jvb/json.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- daily rollover -->
+            <FileNamePattern>/var/log/jvb/json.log.%d{yyyy-MM-dd}</FileNamePattern>
+            <!-- keep 5 days' worth of history -->
+            <maxHistory>5</maxHistory>
+        </rollingPolicy>
+
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
+    </appender>
+
+    <appender name="asyncJsonRollingFileAppender" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>1000</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <appender-ref ref="jsonRollingFileAppender" />
+    </appender>
+
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <!-- encoders are assigned the type
              ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
@@ -16,6 +35,7 @@
 
     <root level="INFO">
         <appender-ref ref="jsonConsoleAppender"/>
+        <appender-ref ref="asyncJsonRollingFileAppender"/>
 <!--        <appender-ref ref="STDOUT" />-->
     </root>
 
