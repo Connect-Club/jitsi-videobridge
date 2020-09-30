@@ -453,7 +453,7 @@ public class Endpoint
                 sctpSocket.ifPresent(socket -> {
                     acceptSctpConnection(socket);
                 });
-                scheduleEndpointMessageTransportTimeout();
+                //scheduleEndpointMessageTransportTimeout();
             }
         };
     }
@@ -974,7 +974,7 @@ public class Endpoint
                     break;
                 }
 
-                if (attempts > 100)
+                if (attempts > 30)
                 {
                     break;
                 }
@@ -983,6 +983,9 @@ public class Endpoint
             {
                 logger.debug("SCTP socket " + sctpServerSocket.hashCode() +
                         (accepted ? " accepted connection." : " did not accept connection."));
+            }
+            if(!accepted) {
+                expire();
             }
         });
     }
