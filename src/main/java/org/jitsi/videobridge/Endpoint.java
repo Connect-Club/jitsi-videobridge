@@ -962,6 +962,7 @@ public class Endpoint
             logger.info("Attempting to establish SCTP socket connection");
             int attempts = 0;
             boolean accepted;
+            LocalDateTime now = LocalDateTime.now();
             while (!(accepted = sctpServerSocket.accept()))
             {
                 attempts++;
@@ -974,7 +975,7 @@ public class Endpoint
                     break;
                 }
 
-                if (attempts > 30)
+                if (attempts > 200)
                 {
                     break;
                 }
@@ -982,7 +983,7 @@ public class Endpoint
             if (logger.isDebugEnabled())
             {
                 logger.debug("SCTP socket " + sctpServerSocket.hashCode() +
-                        (accepted ? " accepted connection." : " did not accept connection."));
+                        (accepted ? " accepted connection." : " did not accept connection.") + " Duration: " + Duration.between(now, LocalDateTime.now()));
             }
             if(!accepted) {
                 expire();
