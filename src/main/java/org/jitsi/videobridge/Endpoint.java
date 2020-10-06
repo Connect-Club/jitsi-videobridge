@@ -975,7 +975,7 @@ public class Endpoint
                     break;
                 }
 
-                if (attempts > 200)
+                if (attempts > 100)
                 {
                     break;
                 }

@@ -141,8 +141,12 @@ class IceTransport @JvmOverloads constructor(
         logger.cdebug { "Starting ICE connectivity establishment" }
 
         // Set the remote ufrag/password
-        iceStream.remoteUfrag = transportPacketExtension.ufrag
-        iceStream.remotePassword = transportPacketExtension.password
+        if (transportPacketExtension.ufrag != null) {
+            iceStream.remoteUfrag = transportPacketExtension.ufrag
+        }
+        if (transportPacketExtension.password != null) {
+            iceStream.remotePassword = transportPacketExtension.password
+        }
 
         // If ICE is running already, we try to update the checklists with the
         // candidates. Note that this is a best effort.
