@@ -95,16 +95,22 @@ public class NotificationsHandler extends EventHandlerActivator {
                 break;
         }
         if (eventType != null) {
+            Logger logger = NotificationsHandler.logger.createChildLogger(NotificationsHandler.class.getName());
             if (conference == null && endpoint != null) {
+                logger.addContext("epId", endpoint.getID());
                 conference = endpoint.getConference();
             }
+            logger.addContext(ImmutableMap.of("confId", conference.getID(), "gid", conference.getGid()));
             JSONObject notification = new JSONObject(ImmutableMap.of(
                     "eventType", eventType,
                     "conferenceId", conference.getID(),
                     "conferenceGid", conference.getGid()
             ));
             if (endpoint != null) {
-                if(endpoint.isShadow()) return;
+                if (endpoint.isShadow()) {
+                    logger.info("This is shadow endpoint. Ignoring notification");
+                    return;
+                }
                 notification.put("endpointId", endpoint.getID());
                 notification.put("endpointUuid", endpoint.getUuid().toString());
             }

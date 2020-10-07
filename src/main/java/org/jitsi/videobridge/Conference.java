@@ -977,6 +977,8 @@ public class Conference
                                 .collect(Collectors.toSet());
                         e.pinnedEndpointsChanged(newPinnedEndpoints);
                     });
+        } else {
+            logger.warn("Trying to expire unknown endpoint id=" + id);
         }
 
         if (tentacle != null)
@@ -991,6 +993,8 @@ public class Conference
             {
                 eventAdmin.sendEvent(
                     EventFactory.endpointExpired(removedEndpoint));
+            } else {
+                logger.warn("EventAdmin is null");
             }
             endpointsChanged();
         }

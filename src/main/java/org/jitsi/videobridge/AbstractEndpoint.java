@@ -314,6 +314,8 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
         if (conference != null)
         {
             conference.endpointExpired(this);
+        } else {
+            logger.warn("Conference is null. How can it be?");
         }
     }
 
