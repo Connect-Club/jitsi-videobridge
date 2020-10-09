@@ -8,10 +8,12 @@ import org.jitsi.eventadmin.Event;
 import org.jitsi.osgi.EventHandlerActivator;
 import org.jitsi.utils.logging2.Logger;
 import org.jitsi.utils.logging2.LoggerImpl;
+import org.jitsi.videobridge.util.TaskPools;
 import org.json.simple.JSONObject;
 
 import java.io.IOException;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("unused") // started by OSGi
 public class NotificationsHandler extends EventHandlerActivator {
@@ -124,17 +126,35 @@ public class NotificationsHandler extends EventHandlerActivator {
                     .post(RequestBody.create(notificationStr, JSON))
                     .build();
 
-            okHttpClient.newCall(request).enqueue(new Callback() {
-                @Override
-                public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                    logger.error("External system notification error", e);
-                }
+            Callback callback = new Callback() {
+                private int attempts = 0;
 
                 @Override
                 public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
                     logger.info(response.body().string());
+                    if(response.code() != 200) {
+                        logger.error("The notification was unsuccessful. Response code = " + response.code());
+                        resendIfAttempts();
+                    }
                 }
-            });
+
+                @Override
+                public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                    logger.error("External system notification error", e);
+                    resendIfAttempts();
+                }
+
+                private void resendIfAttempts() {
+                    if(++attempts < 3) {
+                        logger.info("The notification will be re-sent after 10 seconds");
+                        TaskPools.SCHEDULED_POOL.schedule(() -> okHttpClient.newCall(request).enqueue(this), 10, TimeUnit.SECONDS);
+                    } else {
+                        logger.warn("There will be no more attempts (" + attempts + ")");
+                    }
+                }
+            };
+
+            okHttpClient.newCall(request).enqueue(callback);
         }
     }
 }
