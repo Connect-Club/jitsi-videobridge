@@ -26,8 +26,8 @@
     },
     {
       "type": "file",
-      "source": "95-kibana.conf",
-      "destination": "/tmp/95-kibana.conf"
+      "source": "filebeat.yml",
+      "destination": "/tmp/filebeat.yml"
     },
     {
       "type": "shell",

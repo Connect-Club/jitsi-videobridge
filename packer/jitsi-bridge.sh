@@ -3,8 +3,16 @@ set -e
 echo "sleeping..."
 sleep 60
 sudo apt-get update
-sudo apt-get install openjdk-8-jdk openjdk-8-jre git unzip prometheus-node-exporter -y
+sudo apt-get install openjdk-8-jdk openjdk-8-jre git unzip prometheus-node-exporter gpg wget apt-transport-https -y
 java -version
+
+# filebeat
+wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
+echo "deb https://artifacts.elastic.co/packages/7.x/apt stable main" | sudo tee -a /etc/apt/sources.list.d/elastic-7.x.list
+sudo apt-get update && sudo apt-get install filebeat
+sudo mv /tmp/filebeat.yml /etc/filebeat/filebeat.yml
+sudo systemctl enable filebeat
+filebeat version
 
 cd
 git clone $GIT_URL
@@ -18,7 +26,6 @@ cd ..
 rm -rf jitsi-videobridge
 sudo apt-get purge git -y
 
-sudo mv /tmp/95-kibana.conf /etc/rsyslog.d/95-kibana.conf
 sudo mv /tmp/videobridge.service /lib/systemd/system
 sudo chmod 0644 /lib/systemd/system/videobridge.service
 sudo ln -s /lib/systemd/system/videobridge.service /etc/systemd/system/multi-user.target.wants/
