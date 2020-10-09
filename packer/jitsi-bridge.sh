@@ -11,6 +11,8 @@ wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add
 echo "deb https://artifacts.elastic.co/packages/7.x/apt stable main" | sudo tee -a /etc/apt/sources.list.d/elastic-7.x.list
 sudo apt-get update && sudo apt-get install filebeat
 sudo mv /tmp/filebeat.yml /etc/filebeat/filebeat.yml
+sudo chown root:root /etc/filebeat/filebeat.yml
+sudo chmod go-w /etc/filebeat/filebeat.yml
 sudo mv /tmp/filebeat.service /lib/systemd/system
 sudo systemctl daemon-reload
 sudo systemctl enable filebeat
@@ -28,6 +30,8 @@ cd ..
 rm -rf jitsi-videobridge
 sudo apt-get purge git -y
 
+sudo mkdir -p /var/log/jvb
+sudo chmod a+w /var/log/jvb
 sudo mv /tmp/videobridge.service /lib/systemd/system
 sudo chmod 0644 /lib/systemd/system/videobridge.service
 sudo ln -s /lib/systemd/system/videobridge.service /etc/systemd/system/multi-user.target.wants/
