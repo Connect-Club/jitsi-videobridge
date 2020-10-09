@@ -30,6 +30,11 @@
       "destination": "/tmp/filebeat.yml"
     },
     {
+      "type": "file",
+      "source": "filebeat.service",
+      "destination": "/tmp/filebeat.service"
+    },
+    {
       "type": "shell",
       "scripts": [
         "jitsi-bridge.sh"
