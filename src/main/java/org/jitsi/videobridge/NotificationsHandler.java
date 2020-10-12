@@ -11,8 +11,8 @@ import org.jitsi.utils.logging2.LoggerImpl;
 import org.jitsi.videobridge.util.TaskPools;
 import org.json.simple.JSONObject;
 
+import javax.xml.ws.Holder;
 import java.io.IOException;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("unused") // started by OSGi
@@ -22,9 +22,40 @@ public class NotificationsHandler extends EventHandlerActivator {
 
     public static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
-    private final OkHttpClient okHttpClient;
+    private final static OkHttpClient okHttpClient = new OkHttpClient();
+    ;
 
     private String notificationUrl;
+
+    private static String getNotificationUrl() {
+        Holder<String> notificationUrlHolder = new Holder(System.getProperty("conference.notification.url"));
+
+        if (StringUtils.isBlank(notificationUrlHolder.value)) {
+            logger.info("System property `conference.notification.url` is not set. Trying to get it from google instance metadata");
+            Request request = new Request.Builder()
+                    .addHeader("Metadata-Flavor", "Google")
+                    .url("http://metadata.google.internal/computeMetadata/v1/instance/attributes/JVB_CONFERENCE_NOTIFICATION_URL")
+                    .get().build();
+            try (Response response = okHttpClient.newCall(request).execute()) {
+                if (response.isSuccessful()) {
+                    notificationUrlHolder.value = response.body().string();
+                    logger.info("Notification url set to: " + notificationUrlHolder.value);
+                } else {
+                    String msg = String.format(
+                            "Can not get `JVB_CONFERENCE_NOTIFICATION_URL` from google cloud metadata. Response(code=%s,message=%s)",
+                            response.code(),
+                            response.body() == null ? "" : response.body().string()
+                    );
+                    logger.error(msg);
+                }
+            } catch (Exception e) {
+                logger.error("Can not get `JVB_CONFERENCE_NOTIFICATION_URL` from google cloud metadata", e);
+            }
+        } else {
+            logger.info("Notification url set to: " + notificationUrlHolder.value);
+        }
+        return notificationUrlHolder.value;
+    }
 
     public NotificationsHandler() {
         super(new String[]{
@@ -33,36 +64,6 @@ public class NotificationsHandler extends EventHandlerActivator {
                 EventFactory.ENDPOINT_CREATED_TOPIC,
                 EventFactory.ENDPOINT_EXPIRED_TOPIC
         });
-        okHttpClient = new OkHttpClient();
-
-        notificationUrl = System.getProperty("conference.notification.url");
-
-        if (StringUtils.isBlank(notificationUrl)) {
-            logger.info("System property `conference.notification.url` is not set. Trying to get it from google instance metadata");
-            ForkJoinPool.commonPool().execute(() -> {
-                Request request = new Request.Builder()
-                        .addHeader("Metadata-Flavor", "Google")
-                        .url("http://metadata.google.internal/computeMetadata/v1/instance/attributes/JVB_CONFERENCE_NOTIFICATION_URL")
-                        .get().build();
-                try (Response response = okHttpClient.newCall(request).execute()) {
-                    if (response.isSuccessful()) {
-                        notificationUrl = response.body().string();
-                        logger.info("Notification url set to: " + notificationUrl);
-                    } else {
-                        String msg = String.format(
-                                "Can not get `JVB_NOTIFICATION_URL` from google cloud metadata. Response(code=%s,message=%s)",
-                                response.code(),
-                                response.body() == null ? "" : response.body().string()
-                        );
-                        logger.error(msg);
-                    }
-                } catch (Exception e) {
-                    logger.error("Can not get `JVB_NOTIFICATION_URL` from google cloud metadata", e);
-                }
-            });
-        } else {
-            logger.info("Notification url set to: " + notificationUrl);
-        }
     }
 
     @Override
@@ -72,8 +73,11 @@ public class NotificationsHandler extends EventHandlerActivator {
             return;
         }
         if (StringUtils.isBlank(notificationUrl)) {
-            logger.debug(() -> "Could not handle an event because notification url was blank.");
-            return;
+            notificationUrl = getNotificationUrl();
+            if (StringUtils.isBlank(notificationUrl)) {
+                logger.debug(() -> "Could not handle an event because notification url is blank.");
+                return;
+            }
         }
         String eventType = null;
         Endpoint endpoint = null;
@@ -132,7 +136,7 @@ public class NotificationsHandler extends EventHandlerActivator {
                 @Override
                 public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
                     logger.info(response.body().string());
-                    if(response.code() != 200) {
+                    if (!response.isSuccessful()) {
                         logger.error("The notification was unsuccessful. Response code = " + response.code());
                         resendIfAttempts();
                     }
@@ -145,7 +149,7 @@ public class NotificationsHandler extends EventHandlerActivator {
                 }
 
                 private void resendIfAttempts() {
-                    if(++attempts < 3) {
+                    if (++attempts < 3) {
                         logger.info("The notification will be re-sent after 10 seconds");
                         TaskPools.SCHEDULED_POOL.schedule(() -> okHttpClient.newCall(request).enqueue(this), 10, TimeUnit.SECONDS);
                     } else {
