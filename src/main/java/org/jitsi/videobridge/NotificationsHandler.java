@@ -104,6 +104,7 @@ public class NotificationsHandler extends EventHandlerActivator {
             Logger logger = NotificationsHandler.logger.createChildLogger(NotificationsHandler.class.getName());
             if (conference == null && endpoint != null) {
                 logger.addContext("epId", endpoint.getID());
+                logger.addContext("epUuid", endpoint.getUuid().toString());
                 conference = endpoint.getConference();
             }
             logger.addContext(ImmutableMap.of("confId", conference.getID(), "gid", conference.getGid()));

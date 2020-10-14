@@ -162,10 +162,11 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
     {
         this.conference = Objects.requireNonNull(conference, "conference");
         Map<String, String> context = new HashMap<>();
-        context.put("epId", id);
         logger = parentLogger.createChildLogger(this.getClass().getName(), context);
         this.id = Objects.requireNonNull(id, "id");
         this.uuid = UUID.randomUUID();
+        context.put("epId", this.id);
+        context.put("epUuid", this.uuid.toString());
     }
 
     /**
