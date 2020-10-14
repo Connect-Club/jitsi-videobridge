@@ -18,6 +18,11 @@ sudo systemctl daemon-reload
 sudo systemctl enable filebeat
 filebeat version
 
+# configure kernel
+echo "net.core.rmem_max=10485760" | sudo tee -a /etc/sysctl.conf
+echo "net.core.netdev_max_backlog=100000" | sudo tee -a /etc/sysctl.conf
+
+# install videobridge
 cd
 git clone $GIT_URL
 cd jitsi-videobridge/
