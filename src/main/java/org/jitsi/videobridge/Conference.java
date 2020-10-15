@@ -993,8 +993,6 @@ public class Conference
             {
                 eventAdmin.sendEvent(
                     EventFactory.endpointExpired(removedEndpoint));
-            } else {
-                logger.warn("EventAdmin is null");
             }
             endpointsChanged();
         }

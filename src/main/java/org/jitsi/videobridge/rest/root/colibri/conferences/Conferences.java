@@ -235,4 +235,10 @@ public class Conferences extends ColibriResource
                 .collect(Collectors.toList());
         conference.sendMessage(EndpointMessageBuilder.createCustomMessage(colibriClass, msgMap), nonShadowEndpoints);
     }
+
+
+    @DELETE
+    public void deleteAllConferences() {
+        Arrays.stream(videobridgeProvider.get().getConferences()).forEach(Conference::expire);
+    }
 }
