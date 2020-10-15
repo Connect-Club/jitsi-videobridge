@@ -210,7 +210,7 @@ public class Conferences extends ColibriResource
     }
 
     @POST
-    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
     @Path("/{confId}/broadcast-message/{colibriClass}")
     public void broadcastMessage(@PathParam("confId") String confId, @PathParam("colibriClass") String colibriClass, String requestBody) {
         Conference conference
@@ -239,6 +239,9 @@ public class Conferences extends ColibriResource
 
     @DELETE
     public void deleteAllConferences() {
-        Arrays.stream(videobridgeProvider.get().getConferences()).forEach(Conference::expire);
+        Videobridge videobridge = videobridgeProvider.get();
+        if(videobridge != null) {
+            Arrays.stream(videobridge.getConferences()).forEach(Conference::expire);
+        }
     }
 }
