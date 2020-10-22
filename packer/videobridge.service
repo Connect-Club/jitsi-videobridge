@@ -5,7 +5,11 @@ After=network.target
 [Service]
 Environment="JAVA_SYS_PROPS=-Dorg.ice4j.ice.harvest.STUN_MAPPING_HARVESTER_ADDRESSES=meet-jit-si-turnrelay.jitsi.net:443"
 ExecStart=/opt/jvb.docker.sh --apis=rest
+ExecStop=/bin/sh -c "export NAME=$(curl -X GET http://metadata.google.internal/computeMetadata/v1/instance/name -H 'Metadata-Flavor: Google'); \
+export ZONE=$(curl -X GET http://metadata.google.internal/computeMetadata/v1/instance/zone -H 'Metadata-Flavor: Google'); \
+gcloud --quiet compute instances delete $NAME --zone=$ZONE"
 User=nobody
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
