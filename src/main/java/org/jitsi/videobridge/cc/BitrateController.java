@@ -15,6 +15,7 @@
  */
 package org.jitsi.videobridge.cc;
 
+import com.google.common.collect.Sets;
 import edu.umd.cs.findbugs.annotations.*;
 import org.jetbrains.annotations.*;
 import org.jitsi.nlj.*;
@@ -188,6 +189,8 @@ public class BitrateController
      */
     private Set<String> pinnedEndpointIds = Collections.emptySet();
 
+    private final Set<String> allowedEndpointIds = Sets.newConcurrentHashSet();
+
     /**
      * The last-n value for the endpoint to which this {@link BitrateController}
      * belongs
@@ -286,17 +289,25 @@ public class BitrateController
      */
     public boolean accept(@NotNull PacketInfo packetInfo)
     {
+        if(packetInfo.getPacket() instanceof AudioRtpPacket) {
+            if(getLastN() == 0) {
+                return allowedEndpointIds.contains(packetInfo.getEndpointId());
+            } else {
+                return true;
+            }
+        }
+
         VideoRtpPacket videoRtpPacket = packetInfo.packetAs();
         long ssrc = videoRtpPacket.getSsrc();
 
         AdaptiveTrackProjection adaptiveTrackProjection
-            = adaptiveTrackProjectionMap.get(ssrc);
+                = adaptiveTrackProjectionMap.get(ssrc);
 
         if (adaptiveTrackProjection == null)
         {
             logger.debug(() ->
-                "Dropping an RTP packet, because the SSRC has not " +
-                    "been signaled:" + ssrc);
+                    "Dropping an RTP packet, because the SSRC has not " +
+                            "been signaled:" + ssrc);
             numDroppedPacketsUnknownSsrc.incrementAndGet();
             return false;
         }
@@ -579,6 +590,10 @@ public class BitrateController
      */
     private synchronized void update()
     {
+        allowedEndpointIds.addAll(pinnedEndpointIds);
+        allowedEndpointIds.addAll(selectedEndpointIds);
+        allowedEndpointIds.removeIf(x -> !pinnedEndpointIds.contains(x) && !selectedEndpointIds.contains(x));
+
         long nowMs = System.currentTimeMillis();
 
         long bweBps = getAvailableBandwidth(nowMs);

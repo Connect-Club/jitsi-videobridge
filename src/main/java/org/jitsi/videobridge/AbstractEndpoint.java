@@ -29,6 +29,7 @@ import org.json.simple.*;
 import java.io.*;
 import java.time.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Represents an endpoint in a conference (i.e. the entity associated with
@@ -96,13 +97,13 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
     /**
      * The set of IDs of the pinned endpoints of this {@code Endpoint}.
      */
-    protected Set<String> pinnedEndpoints = new HashSet<>();
+    private Set<String> pinnedEndpoints = new HashSet<>();
 
     /**
      * The set of currently selected <tt>Endpoint</tt>s at this
      * <tt>Endpoint</tt>.
      */
-    protected Set<String> selectedEndpoints = new HashSet<>();
+    private Set<String> selectedEndpoints = new HashSet<>();
 
 
     /**
@@ -128,6 +129,13 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
         }
     }
 
+    public void removePinnedEndpoint(String removedPinnedEndpoint) {
+        Set<String> newPinnedEndpoints = pinnedEndpoints.stream()
+                .filter(x -> !Objects.equals(x, removedPinnedEndpoint))
+                .collect(Collectors.toSet());
+        pinnedEndpointsChanged(newPinnedEndpoints);
+    }
+
     /**
      * Sets the list of selected endpoints for this endpoint.
      * @param newSelectedEndpoints the set of selected endpoints.
@@ -149,6 +157,13 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
             firePropertyChange(SELECTED_ENDPOINTS_PROPERTY_NAME,
                 oldSelectedEndpoints, selectedEndpoints);
         }
+    }
+
+    public void removeSelectedEndpoint(String removedSelectedEndpoint) {
+        Set<String> newPinnedEndpoints = selectedEndpoints.stream()
+                .filter(x -> !Objects.equals(x, removedSelectedEndpoint))
+                .collect(Collectors.toSet());
+        pinnedEndpointsChanged(newPinnedEndpoints);
     }
 
 

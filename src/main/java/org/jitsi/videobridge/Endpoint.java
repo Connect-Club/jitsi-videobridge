@@ -591,7 +591,8 @@ public class Endpoint
             }
             if (packet instanceof AudioRtpPacket)
             {
-                return acceptAudio;
+                return acceptAudio
+                        && bitrateController.accept(packetInfo);
             }
         }
         else if (packet instanceof RtcpPacket)
@@ -637,20 +638,12 @@ public class Endpoint
             if (!accepted)
             {
                 logger.warn(
-                    "Dropping a packet which was supposed to be accepted:"
-                        + packet);
+                        "Dropping a packet which was supposed to be accepted:"
+                                + packet);
                 return;
             }
 
             // The original packet was transformed in place.
-            transceiver.sendPacket(packetInfo);
-
-            return;
-        } else if(packet instanceof AudioRtpPacket && getLastN() == 0) {
-            if(!pinnedEndpoints.contains(packetInfo.getEndpointId()) && !selectedEndpoints.contains(packetInfo.getEndpointId())) {
-                return;
-            }
-
             transceiver.sendPacket(packetInfo);
 
             return;
@@ -664,10 +657,10 @@ public class Endpoint
             if (logger.isTraceEnabled())
             {
                 logger.trace(
-                    "relaying an sr from ssrc="
-                        + rtcpSrPacket.getSenderSsrc()
-                        + ", timestamp="
-                        + rtcpSrPacket.getSenderInfo().getRtpTimestamp());
+                        "relaying an sr from ssrc="
+                                + rtcpSrPacket.getSenderSsrc()
+                                + ", timestamp="
+                                + rtcpSrPacket.getSenderInfo().getRtpTimestamp());
             }
         }
 

@@ -972,10 +972,8 @@ public class Conference
             updateEndpointsCache();
             endpoints.values()
                     .forEach(e -> {
-                        Set<String> newPinnedEndpoints = e.pinnedEndpoints.stream()
-                                .filter(x -> !x.equals(endpoint.getID()))
-                                .collect(Collectors.toSet());
-                        e.pinnedEndpointsChanged(newPinnedEndpoints);
+                        e.removePinnedEndpoint(endpoint.getID());
+                        e.removeSelectedEndpoint(endpoint.getID());
                     });
         } else {
             logger.warn("Trying to expire unknown endpoint id=" + id);
@@ -1024,10 +1022,8 @@ public class Conference
                 "endpoint with same id: " + endpoint);
             endpoints.values()
                     .forEach(e -> {
-                        Set<String> newPinnedEndpoints = e.pinnedEndpoints.stream()
-                                .filter(x -> !x.equals(endpoint.getID()))
-                                .collect(Collectors.toSet());
-                        e.pinnedEndpointsChanged(newPinnedEndpoints);
+                        e.removePinnedEndpoint(endpoint.getID());
+                        e.removeSelectedEndpoint(endpoint.getID());
                     });
         }
     }
