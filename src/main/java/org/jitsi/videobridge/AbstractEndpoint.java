@@ -15,6 +15,7 @@
  */
 package org.jitsi.videobridge;
 
+import com.google.common.collect.ImmutableMap;
 import org.jitsi.nlj.format.*;
 import org.jitsi.nlj.rtp.*;
 import org.jitsi.nlj.util.*;
@@ -160,10 +161,10 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
     }
 
     public void removeSelectedEndpoint(String removedSelectedEndpoint) {
-        Set<String> newPinnedEndpoints = selectedEndpoints.stream()
+        Set<String> newSelectedEndpoints = selectedEndpoints.stream()
                 .filter(x -> !Objects.equals(x, removedSelectedEndpoint))
                 .collect(Collectors.toSet());
-        pinnedEndpointsChanged(newPinnedEndpoints);
+        selectedEndpointsChanged(newSelectedEndpoints);
     }
 
 
@@ -176,12 +177,13 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
     protected AbstractEndpoint(Conference conference, String id, Logger parentLogger)
     {
         this.conference = Objects.requireNonNull(conference, "conference");
-        Map<String, String> context = new HashMap<>();
-        logger = parentLogger.createChildLogger(this.getClass().getName(), context);
         this.id = Objects.requireNonNull(id, "id");
         this.uuid = UUID.randomUUID();
-        context.put("epId", this.id);
-        context.put("epUuid", this.uuid.toString());
+        Map<String,String> context = ImmutableMap.of(
+                "epId", this.id,
+                "epUuid", this.uuid.toString()
+        );
+        logger = parentLogger.createChildLogger(this.getClass().getName(), context);
     }
 
     /**
