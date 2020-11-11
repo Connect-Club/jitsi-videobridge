@@ -23,12 +23,11 @@ public class NotificationsHandler extends EventHandlerActivator {
     public static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
     private final static OkHttpClient okHttpClient = new OkHttpClient();
-    ;
 
     private String notificationUrl;
 
     private static String getNotificationUrl() {
-        Holder<String> notificationUrlHolder = new Holder(System.getProperty("conference.notification.url"));
+        Holder<String> notificationUrlHolder = new Holder<>(System.getProperty("conference.notification.url"));
 
         if (StringUtils.isBlank(notificationUrlHolder.value)) {
             logger.info("System property `conference.notification.url` is not set. Trying to get it from google instance metadata");
