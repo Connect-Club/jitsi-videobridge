@@ -15,8 +15,15 @@
  */
 package org.jitsi.videobridge.stats;
 
+import org.apache.commons.lang3.StringUtils;
+import org.jitsi.eventadmin.Event;
+import org.jitsi.eventadmin.EventHandler;
+import org.jitsi.eventadmin.EventUtil;
 import org.jitsi.utils.logging2.Logger;
 import org.jitsi.utils.logging2.LoggerImpl;
+import org.jitsi.videobridge.Endpoint;
+import org.jitsi.videobridge.EventFactory;
+import org.jitsi.videobridge.websocket.ColibriWebSocket;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.ServiceRegistration;
@@ -36,7 +43,7 @@ import static org.jitsi.videobridge.stats.config.StatsManagerBundleActivatorConf
  * @author Lyubomir Marinov
  */
 public class StatsManagerBundleActivator
-    implements BundleActivator
+    implements BundleActivator, EventHandler
 {
     /**
      * The <tt>BundleContext</tt> in which a
@@ -70,6 +77,8 @@ public class StatsManagerBundleActivator
      */
     private ServiceRegistration<StatsManager> serviceRegistration;
 
+    private ServiceRegistration<EventHandler> eventHandlerRegistration;
+
     /**
      * Starts the <tt>StatsManager</tt> OSGi bundle in a <tt>BundleContext</tt>.
      * Initializes and starts a new <tt>StatsManager</tt> instance and registers
@@ -85,6 +94,11 @@ public class StatsManagerBundleActivator
     {
         if (Config.enabled())
         {
+            eventHandlerRegistration = EventUtil.registerEventHandler(
+                    bundleContext,
+                    new String[] {EventFactory.ENDPOINT_CREATED_TOPIC, EventFactory.ENDPOINT_EXPIRED_TOPIC},
+                    this);
+
             StatsManagerBundleActivator.bundleContext = bundleContext;
 
             boolean started = false;
@@ -167,6 +181,12 @@ public class StatsManagerBundleActivator
     public void stop(BundleContext bundleContext)
         throws Exception
     {
+        if (eventHandlerRegistration != null)
+        {
+            eventHandlerRegistration.unregister();
+            eventHandlerRegistration = null;
+        }
+
         // Unregister StatsManager as an OSGi service.
         ServiceRegistration<StatsManager> serviceRegistration
             = this.serviceRegistration;
@@ -189,6 +209,37 @@ public class StatsManagerBundleActivator
             serviceRegistration.unregister();
             if (statsMgr != null)
                 statsMgr.stop(bundleContext);
+        }
+    }
+
+    @Override
+    public void handleEvent(Event event) {
+        if (event == null) {
+            logger.debug(() -> "Could not handle an event because it was null.");
+            return;
+        }
+
+        // It means that either stats are not enabled or we have failed to start
+        if (serviceRegistration == null)
+            return;
+
+        StatsManager statsMgr = bundleContext.getService(serviceRegistration.getReference());
+
+        if(statsMgr == null)
+            return;
+
+        Endpoint endpoint = (Endpoint) event.getProperty(EventFactory.EVENT_SOURCE);
+        String endpointId = endpoint.getID();
+        String confId = endpoint.getConference().getID();
+        if(StringUtils.isBlank(confId) || StringUtils.isBlank(endpointId))
+            return;
+        switch (event.getTopic()) {
+            case EventFactory.ENDPOINT_CREATED_TOPIC:
+                statsMgr.addStatistics(new EndpointStatistics(confId, endpointId), Config.statsInterval().toMillis());
+                break;
+            case EventFactory.ENDPOINT_EXPIRED_TOPIC:
+                statsMgr.removeStatisticsIf(EndpointStatistics.class, x -> x.confId.equals(confId) && x.endpointId.equals(endpointId));
+                break;
         }
     }
 }

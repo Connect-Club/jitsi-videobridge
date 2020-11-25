@@ -49,4 +49,23 @@ public class Stats extends ColibriResource
         }
         return new JSONObject().toJSONString();
     }
+
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/confId/{confId}/endpointId/{endpointId}")
+    public String getEndpointStats(@PathParam("confId") String confId, @PathParam("endpointId") String endpointId)
+    {
+        StatsManager statsManager = statsManagerProvider.get();
+        Statistics endpointStatistics = statsManager.getStatistics().stream()
+                .filter(s -> s instanceof EndpointStatistics)
+                .map(s -> (EndpointStatistics)s)
+                .filter(s -> s.confId.equals(confId) && s.endpointId.equals(endpointId))
+                .findFirst()
+                .orElse(null);
+        if (endpointStatistics != null)
+        {
+            return JSONSerializer.serializeStatistics(endpointStatistics).toJSONString();
+        }
+        return new JSONObject().toJSONString();
+    }
 }

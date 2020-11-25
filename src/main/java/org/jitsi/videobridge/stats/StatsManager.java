@@ -17,6 +17,8 @@ package org.jitsi.videobridge.stats;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.Predicate;
+
 import org.jitsi.utils.concurrent.*;
 import org.osgi.framework.*;
 
@@ -85,8 +87,26 @@ public class StatsManager
 
         // XXX The field statistics is a CopyOnWriteArrayList in order to avoid
         // synchronization here.
-        this.statistics.add(
-                new StatisticsPeriodicRunnable(statistics, period));
+        StatisticsPeriodicRunnable spp;
+        this.statistics.add(spp = new StatisticsPeriodicRunnable(statistics, period));
+        if(getBundleContext() != null) {
+            statisticsExecutor.registerRecurringRunnable(spp);
+        }
+    }
+
+    <T extends Statistics> void removeStatisticsIf(Class<T> clazz, Predicate<T> filter)
+    {
+        if(getBundleContext() != null) {
+            this.statistics.stream()
+                    .filter(clazz::isInstance)
+                    .filter(x -> filter.test((T)x.o))
+                    .forEach(x -> {
+                        if(getBundleContext() != null) {
+                            statisticsExecutor.deRegisterRecurringRunnable(x);
+                        }
+                        this.statistics.remove(x);
+                    });
+        }
     }
 
     /**
