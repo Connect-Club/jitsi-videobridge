@@ -229,6 +229,9 @@ public class Endpoint
      */
     private static final boolean OPEN_DATA_LOCALLY = true;
 
+    private final Map<AbstractEndpoint, Instant> lastVideoPacketTimeFromEndpoint = new ConcurrentHashMap<>();
+    private final Map<AbstractEndpoint, Instant> lastAudioPacketTimeFromEndpoint = new ConcurrentHashMap<>();
+
     /**
      * The executor which runs bandwidth probing.
      *
@@ -645,7 +648,12 @@ public class Endpoint
 
             // The original packet was transformed in place.
             transceiver.sendPacket(packetInfo);
-
+            lastVideoPacketTimeFromEndpoint.put(getConference().getEndpoint(packetInfo.getEndpointId()), clock.instant());
+            return;
+        }
+        else if (packet instanceof AudioRtpPacket) {
+            transceiver.sendPacket(packetInfo);
+            lastAudioPacketTimeFromEndpoint.put(getConference().getEndpoint(packetInfo.getEndpointId()), clock.instant());
             return;
         }
         else if (packet instanceof RtcpSrPacket)
@@ -1633,5 +1641,19 @@ public class Endpoint
 
     public boolean isShadow() {
         return shadow;
+    }
+
+    public Set<AbstractEndpoint> getTooLongInactivePinnedEndpoints(Duration innactivityTimeout) {
+        Instant now = clock.instant();
+        List<AbstractEndpoint> inactiveEndpoints = Stream.concat(lastAudioPacketTimeFromEndpoint.entrySet().stream(), lastVideoPacketTimeFromEndpoint.entrySet().stream())
+                .filter(x -> Duration.between(x.getValue(), now).compareTo(innactivityTimeout) > 0)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+        Set<AbstractEndpoint> expiredEndpoints = inactiveEndpoints.stream()
+                .filter(AbstractEndpoint::isExpired)
+                .collect(Collectors.toSet());
+        lastAudioPacketTimeFromEndpoint.keySet().removeAll(expiredEndpoints);
+        lastVideoPacketTimeFromEndpoint.keySet().removeAll(expiredEndpoints);
+        return inactiveEndpoints.stream().filter(x -> !x.isExpired()).collect(Collectors.toSet());
     }
 }
