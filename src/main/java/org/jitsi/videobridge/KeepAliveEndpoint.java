@@ -18,7 +18,7 @@ public class KeepAliveEndpoint extends EventHandlerActivator {
 
     private static final Logger logger = new LoggerImpl(KeepAliveEndpoint.class.getName());
 
-    private static final Duration PINNED_INACTIVITY_TIMEOUT_LIMIT = Duration.ofMinutes(1);
+    private static final Duration PINNED_INACTIVITY_TIMEOUT_LIMIT = Duration.ofMinutes(10);
 
     public KeepAliveEndpoint() {
         super(new String[]{
@@ -44,7 +44,7 @@ public class KeepAliveEndpoint extends EventHandlerActivator {
                         ScheduledFuture<?> scheduledFuture = TaskPools.SCHEDULED_POOL.scheduleAtFixedRate(
                                 new EndpointRunnable(endpoint),
                                 PINNED_INACTIVITY_TIMEOUT_LIMIT.getSeconds(),
-                                20,
+                                1,
                                 TimeUnit.SECONDS
                         );
                         m.put(endpoint, scheduledFuture);
