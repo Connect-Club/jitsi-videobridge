@@ -18,6 +18,8 @@ package org.jitsi.videobridge;
 import org.jitsi.cmd.CmdLine;
 import org.jitsi.config.JitsiConfig;
 import org.jitsi.meet.ComponentMain;
+import org.jitsi.utils.logging2.Logger;
+import org.jitsi.utils.logging2.LoggerImpl;
 import org.jitsi.videobridge.osgi.BundleConfig;
 import org.jitsi.videobridge.xmpp.ComponentImpl;
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -42,6 +44,8 @@ import java.util.logging.LogManager;
  */
 public class Main
 {
+    private static final Logger logger = new LoggerImpl(Main.class.getName());
+
     /**
      * The name of the command-line argument which specifies the application
      * programming interfaces (APIs) to enable for Jitsi Videobridge.
@@ -106,6 +110,8 @@ public class Main
         SLF4JBridgeHandler.removeHandlersForRootLogger();
         LogManager.getLogManager().getLogger("").addHandler(new CustomSLF4JBridgeHandler());
         //--------------------------------------
+
+        logger.info("Videobridge is starting up");
 
         CmdLine cmdLine = new CmdLine();
 
