@@ -13,9 +13,9 @@
     && curl -s -X POST -H 'Content-type: application/json' \
     --data "{\"text\": \"Образ *$CI_PROJECT_TITLE* \`videobridge-$GIT_SHA\` успешно создан\"}" \
     $SLACK_WEBHOOK_URL \
-    || curl -s -X POST -H 'Content-type: application/json' \
+    || (curl -s -X POST -H 'Content-type: application/json' \
     --data "{\"text\": \"⛔️Сборка образа *$CI_PROJECT_TITLE* \`videobridge-$GIT_SHA\` провалилась:\n$CI_PIPELINE_URL\"}" \
-    $SLACK_WEBHOOK_URL
+    $SLACK_WEBHOOK_URL && exit 1)
   when: manual
   tags:
   - support-cluster-runner
