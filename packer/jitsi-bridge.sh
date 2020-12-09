@@ -44,3 +44,6 @@ sudo systemctl enable videobridge.service
 sudo systemctl start videobridge
 sleep 5
 sudo systemctl status videobridge
+sudo systemctl stop videobridge
+sleep 5
+sudo rm -rf /var/log/jvb/*.log
