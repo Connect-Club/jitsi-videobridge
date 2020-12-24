@@ -645,14 +645,14 @@ public class Endpoint
     public void send(PacketInfo packetInfo)
     {
         Packet packet = packetInfo.getPacket();
-        if(packet instanceof RtpPacket) {
-            RtpPacket rtpPacket = (RtpPacket) packet;
-            Integer sequenceNumberDelta = ssrcSequenceNumberDelta.get(rtpPacket.getSsrc());
-            if(sequenceNumberDelta != null) {
-                int newSeqNumber = RtpUtils.applySequenceNumberDelta(rtpPacket.getSequenceNumber(), sequenceNumberDelta);
-                rtpPacket.setSequenceNumber(newSeqNumber);
-            }
-        }
+//        if(packet instanceof RtpPacket) {
+//            RtpPacket rtpPacket = (RtpPacket) packet;
+//            Integer sequenceNumberDelta = ssrcSequenceNumberDelta.get(rtpPacket.getSsrc());
+//            if(sequenceNumberDelta != null) {
+//                int newSeqNumber = RtpUtils.applySequenceNumberDelta(rtpPacket.getSequenceNumber(), sequenceNumberDelta);
+//                rtpPacket.setSequenceNumber(newSeqNumber);
+//            }
+//        }
         if (packet instanceof VideoRtpPacket)
         {
             boolean accepted = bitrateController.transformRtp(packetInfo);
