@@ -32,6 +32,7 @@ import org.jitsi.rtp.extensions.*;
 import org.jitsi.rtp.rtcp.*;
 import org.jitsi.rtp.rtcp.rtcpfb.payload_specific_fb.*;
 import org.jitsi.rtp.rtp.*;
+import org.jitsi.rtp.util.RtpUtils;
 import org.jitsi.utils.*;
 import org.jitsi.utils.concurrent.*;
 import org.jitsi.utils.logging.*;
@@ -228,6 +229,9 @@ public class Endpoint
      * (as opposed to letting the far peer/client open it).
      */
     private static final boolean OPEN_DATA_LOCALLY = true;
+
+    private final Map<Long, Integer> ssrcLastSequenceNumber = new ConcurrentHashMap<>();
+
 
     /**
      * The executor which runs bandwidth probing.
@@ -632,22 +636,28 @@ public class Endpoint
     public void send(PacketInfo packetInfo)
     {
         Packet packet = packetInfo.getPacket();
-        if (packet instanceof VideoRtpPacket)
+
+        if (packet instanceof VideoRtpPacket || packet instanceof AudioRtpPacket)
         {
-            boolean accepted = bitrateController.transformRtp(packetInfo);
-            if (!accepted)
-            {
-                logger.warn(
-                        "Dropping a packet which was supposed to be accepted:"
-                                + packet);
-                return;
+            if(packet instanceof VideoRtpPacket) {
+                boolean accepted = bitrateController.transformRtp(packetInfo);
+                if (!accepted)
+                {
+                    logger.warn(
+                            "Dropping a packet which was supposed to be accepted:"
+                                    + packet);
+                    return;
+                }
             }
 
-            // The original packet was transformed in place.
-            transceiver.sendPacket(packetInfo);
-            return;
-        }
-        else if (packet instanceof AudioRtpPacket) {
+            RtpPacket rtpPacket = (RtpPacket) packet;
+            Integer lastSequenceNumber = ssrcLastSequenceNumber.get(rtpPacket.getSsrc());
+            if(lastSequenceNumber != null) {
+                int newSequenceNumber = RtpUtils.applySequenceNumberDelta(lastSequenceNumber, 1);
+                rtpPacket.setSequenceNumber(newSequenceNumber);
+            }
+            ssrcLastSequenceNumber.put(rtpPacket.getSsrc(), rtpPacket.getSequenceNumber());
+
             transceiver.sendPacket(packetInfo);
             return;
         }
