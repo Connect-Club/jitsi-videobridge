@@ -21,9 +21,7 @@ import org.jetbrains.annotations.*;
 import org.jitsi.nlj.*;
 import org.jitsi.nlj.format.*;
 import org.jitsi.nlj.rtp.*;
-import org.jitsi.rtp.Packet;
 import org.jitsi.rtp.rtcp.*;
-import org.jitsi.rtp.rtp.RtpPacket;
 import org.jitsi.utils.*;
 import org.jitsi.utils.logging.*;
 import org.jitsi.utils.logging2.Logger;
@@ -291,23 +289,15 @@ public class BitrateController
      */
     public boolean accept(@NotNull PacketInfo packetInfo)
     {
-        Packet packet = packetInfo.getPacket();
-        if(!(packet instanceof RtpPacket)) {
-            throw new RuntimeException();
-        }
-
-        if(getLastN() == 0) {
-            boolean allowed = allowedEndpointIds.contains(packetInfo.getEndpointId());
-            if(!allowed) {
-                return false;
+        if(packetInfo.getPacket() instanceof AudioRtpPacket) {
+            if(getLastN() == 0) {
+                return allowedEndpointIds.contains(packetInfo.getEndpointId());
+            } else {
+                return true;
             }
         }
 
-        if(packet instanceof AudioRtpPacket) {
-            return true;
-        }
-
-        VideoRtpPacket videoRtpPacket = (VideoRtpPacket) packet;
+        VideoRtpPacket videoRtpPacket = packetInfo.packetAs();
         long ssrc = videoRtpPacket.getSsrc();
 
         AdaptiveTrackProjection adaptiveTrackProjection
@@ -936,7 +926,7 @@ public class BitrateController
             = new ArrayList<>();
 
         int adjustedLastN = this.lastN;
-        if (adjustedLastN <= 0)
+        if (adjustedLastN < 0)
         {
             // If lastN is disabled, pretend lastN == szConference.
             adjustedLastN = conferenceEndpoints.size() - 1;
@@ -961,7 +951,7 @@ public class BitrateController
         // First, bubble-up the selected endpoints (whoever's on-stage needs to
         // be visible).
         for (Iterator<AbstractEndpoint> it = conferenceEndpoints.iterator();
-             it.hasNext() && endpointPriority < adjustedLastN;)
+             it.hasNext() && (adjustedLastN == 0 || endpointPriority < adjustedLastN);)
         {
             AbstractEndpoint sourceEndpoint = it.next();
             if (sourceEndpoint.isExpired()
@@ -1001,7 +991,7 @@ public class BitrateController
         if (!pinnedEndpointIds.isEmpty())
         {
             for (Iterator<AbstractEndpoint> it = conferenceEndpoints.iterator();
-                 it.hasNext() && endpointPriority < adjustedLastN;)
+                 it.hasNext() && (adjustedLastN == 0 || endpointPriority < adjustedLastN);)
             {
                 AbstractEndpoint sourceEndpoint = it.next();
                 if (sourceEndpoint.isExpired()

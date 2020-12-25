@@ -73,6 +73,9 @@ public class BundleConfig
         },
         {
             "org/jitsi/videobridge/NotificationsHandler"
+        },
+        {
+            "org/jitsi/videobridge/KeepAliveEndpoint"
         }
     };
 

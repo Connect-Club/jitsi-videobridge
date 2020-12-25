@@ -334,7 +334,7 @@ public class VideobridgeStatistics
                 // a limit imposed by lastN.
                 int lastN = endpoint.getLastN();
                 endpointStreams
-                   += lastN <= 0
+                   += lastN == -1
                        ? numConferenceEndpoints - 1
                        : Math.min(lastN, numConferenceEndpoints - 1);
 

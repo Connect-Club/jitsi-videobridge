@@ -17,7 +17,6 @@ package org.jitsi.videobridge;
 
 import kotlin.*;
 import kotlin.jvm.functions.*;
-import org.apache.commons.lang3.NotImplementedException;
 import org.jetbrains.annotations.*;
 import org.jitsi.nlj.*;
 import org.jitsi.nlj.format.*;
@@ -33,7 +32,6 @@ import org.jitsi.rtp.extensions.*;
 import org.jitsi.rtp.rtcp.*;
 import org.jitsi.rtp.rtcp.rtcpfb.payload_specific_fb.*;
 import org.jitsi.rtp.rtp.*;
-import org.jitsi.rtp.util.RtpUtils;
 import org.jitsi.utils.*;
 import org.jitsi.utils.concurrent.*;
 import org.jitsi.utils.logging.*;
@@ -231,7 +229,8 @@ public class Endpoint
      */
     private static final boolean OPEN_DATA_LOCALLY = true;
 
-    private final Map<Long, Integer> ssrcSequenceNumberDelta = new ConcurrentHashMap<>();
+    private final Map<AbstractEndpoint, Instant> lastVideoPacketTimeFromEndpoint = new ConcurrentHashMap<>();
+    private final Map<AbstractEndpoint, Instant> lastAudioPacketTimeFromEndpoint = new ConcurrentHashMap<>();
 
     /**
      * The executor which runs bandwidth probing.
@@ -588,25 +587,16 @@ public class Endpoint
 
         if (packet instanceof RtpPacket)
         {
-            RtpPacket rtpPacket = (RtpPacket) packet;
-            boolean accept;
             if (packet instanceof VideoRtpPacket)
             {
-                accept = acceptVideo
+                return acceptVideo
                         && bitrateController.accept(packetInfo);
-            } else if (packet instanceof AudioRtpPacket)
+            }
+            if (packet instanceof AudioRtpPacket)
             {
-                accept = acceptAudio
+                return acceptAudio
                         && bitrateController.accept(packetInfo);
-            } else {
-                throw new NotImplementedException(packet.getClass().toString());
             }
-            if(accept) {
-                ssrcSequenceNumberDelta.putIfAbsent(rtpPacket.getSsrc(), 0);
-            } else {
-                ssrcSequenceNumberDelta.computeIfPresent(rtpPacket.getSsrc(), (ssrc,delta) -> delta - 1);
-            }
-            return accept;
         }
         else if (packet instanceof RtcpPacket)
         {
@@ -645,14 +635,6 @@ public class Endpoint
     public void send(PacketInfo packetInfo)
     {
         Packet packet = packetInfo.getPacket();
-        if(packet instanceof RtpPacket) {
-            RtpPacket rtpPacket = (RtpPacket) packet;
-            Integer sequenceNumberDelta = ssrcSequenceNumberDelta.get(rtpPacket.getSsrc());
-            if(sequenceNumberDelta != null) {
-                int newSeqNumber = RtpUtils.applySequenceNumberDelta(rtpPacket.getSequenceNumber(), sequenceNumberDelta);
-                rtpPacket.setSequenceNumber(newSeqNumber);
-            }
-        }
         if (packet instanceof VideoRtpPacket)
         {
             boolean accepted = bitrateController.transformRtp(packetInfo);
@@ -666,10 +648,12 @@ public class Endpoint
 
             // The original packet was transformed in place.
             transceiver.sendPacket(packetInfo);
+            lastVideoPacketTimeFromEndpoint.put(getConference().getEndpoint(packetInfo.getEndpointId()), clock.instant());
             return;
         }
         else if (packet instanceof AudioRtpPacket) {
             transceiver.sendPacket(packetInfo);
+            lastAudioPacketTimeFromEndpoint.put(getConference().getEndpoint(packetInfo.getEndpointId()), clock.instant());
             return;
         }
         else if (packet instanceof RtcpSrPacket)
@@ -1659,4 +1643,17 @@ public class Endpoint
         return shadow;
     }
 
+    public Set<AbstractEndpoint> getTooLongInactivePinnedEndpoints(Duration innactivityTimeout) {
+        Instant now = clock.instant();
+        List<AbstractEndpoint> inactiveEndpoints = Stream.concat(lastAudioPacketTimeFromEndpoint.entrySet().stream(), lastVideoPacketTimeFromEndpoint.entrySet().stream())
+                .filter(x -> Duration.between(x.getValue(), now).compareTo(innactivityTimeout) > 0)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+        Set<AbstractEndpoint> expiredEndpoints = inactiveEndpoints.stream()
+                .filter(AbstractEndpoint::isExpired)
+                .collect(Collectors.toSet());
+        lastAudioPacketTimeFromEndpoint.keySet().removeAll(expiredEndpoints);
+        lastVideoPacketTimeFromEndpoint.keySet().removeAll(expiredEndpoints);
+        return inactiveEndpoints.stream().filter(x -> !x.isExpired()).collect(Collectors.toSet());
+    }
 }
