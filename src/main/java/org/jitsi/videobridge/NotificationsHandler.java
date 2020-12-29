@@ -14,6 +14,7 @@ import org.json.simple.JSONObject;
 import javax.xml.ws.Holder;
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("unused") // started by OSGi
@@ -23,7 +24,9 @@ public class NotificationsHandler extends EventHandlerActivator {
 
     public static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
-    private final static OkHttpClient okHttpClient = new OkHttpClient();
+    private final static OkHttpClient okHttpClient = new OkHttpClient.Builder()
+            .dispatcher(new Dispatcher(Executors.newSingleThreadExecutor()))
+            .build();
 
     private String notificationUrl;
 
