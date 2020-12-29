@@ -13,6 +13,7 @@ import org.json.simple.JSONObject;
 
 import javax.xml.ws.Holder;
 import java.io.IOException;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("unused") // started by OSGi
@@ -100,7 +101,8 @@ public class NotificationsHandler extends EventHandlerActivator {
                 break;
         }
         if (eventType != null) {
-            Logger logger = NotificationsHandler.logger.createChildLogger(NotificationsHandler.class.getName());
+            final Logger logger = NotificationsHandler.logger.createChildLogger(NotificationsHandler.class.getName());
+            logger.addContext("loggerUuid", UUID.randomUUID().toString());
             if (conference == null && endpoint != null) {
                 logger.addContext("epId", endpoint.getID());
                 logger.addContext("epUuid", endpoint.getUuid().toString());
