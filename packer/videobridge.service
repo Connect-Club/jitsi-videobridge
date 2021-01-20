@@ -10,6 +10,8 @@ export ZONE=$(curl -X GET http://metadata.google.internal/computeMetadata/v1/ins
 gcloud --quiet compute instances delete $NAME --zone=$ZONE"
 User=nobody
 Restart=on-failure
+StandardOutput=null
+# StandardError=null
 
 [Install]
 WantedBy=multi-user.target
