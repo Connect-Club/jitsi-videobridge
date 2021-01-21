@@ -238,10 +238,42 @@ public class Conferences extends ColibriResource
 
 
     @DELETE
-    public void deleteAllConferences() {
+    public void deleteConferences() {
         Videobridge videobridge = videobridgeProvider.get();
         if(videobridge != null) {
             Arrays.stream(videobridge.getConferences()).forEach(Conference::expire);
         }
+    }
+
+    @POST
+    @Path("/expire")
+    @Produces(MediaType.APPLICATION_JSON)
+    public String expireConferences() {
+        Videobridge videobridge = videobridgeProvider.get();
+        List<Conference> expiredConferences = Arrays.stream(videobridge.getConferences())
+                .filter(Conference::shouldExpire)
+                .peek(Conference::expire)
+                .collect(Collectors.toList());
+
+        List<ColibriConferenceIQ> conferenceIQs = new ArrayList<>();
+
+        for (Conference conference : expiredConferences)
+        {
+            ColibriConferenceIQ conferenceIQ = new ColibriConferenceIQ();
+
+            conference.describeShallow(conferenceIQ);
+            conferenceIQs.add(conferenceIQ);
+        }
+
+        JSONArray conferencesJSONArray
+                = JSONSerializer.serializeConferences(conferenceIQs);
+
+        if (conferencesJSONArray == null)
+        {
+            conferencesJSONArray = new JSONArray();
+        }
+
+
+        return conferencesJSONArray.toJSONString();
     }
 }

@@ -131,7 +131,7 @@ public class VideobridgeExpireThread
     }
 
     /**
-     * Expires the {@link Conference}s and/or {@link Endpoint}s of a specific <tt>Videobridge</tt> if they
+     * Expires the {@link Endpoint}s of a specific <tt>Videobridge</tt> if they
      * have been inactive for more than their advertised <tt>expire</tt> number
      * of seconds.
      *
@@ -144,23 +144,12 @@ public class VideobridgeExpireThread
         logger.info("Running expire()");
         for (Conference conference : videobridge.getConferences())
         {
-            // The Conferences will live an iteration more than the Contents.
-            if (conference.shouldExpire())
+            for (AbstractEndpoint endpoint : conference.getEndpoints())
             {
-                logger.info("Conference "
-                        + conference.getID() + " should expire, expiring it");
-                EXPIRE_EXECUTOR.execute(
-                        () -> videobridge.expireConference(conference));
-            }
-            else
-            {
-                for (AbstractEndpoint endpoint : conference.getEndpoints())
+                if (endpoint.shouldExpire())
                 {
-                    if (endpoint.shouldExpire())
-                    {
-                        logger.info("Expiring endpoint " + endpoint.getID());
-                        EXPIRE_EXECUTOR.execute(endpoint::expire);
-                    }
+                    logger.info("Expiring endpoint " + endpoint.getID());
+                    EXPIRE_EXECUTOR.execute(endpoint::expire);
                 }
             }
         }
