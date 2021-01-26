@@ -51,6 +51,8 @@ public class EndpointStatistics extends Statistics {
         Videobridge videobridge
                 = ServiceUtils2.getService(bundleContext, Videobridge.class);
 
+        if(videobridge == null) return;
+
         Conference conference = Arrays.stream(videobridge.getConferences())
                 .filter(Conference::includeInStatistics)
                 .filter(x -> Objects.equals(x.getID(), confId))
