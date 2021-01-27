@@ -184,6 +184,7 @@ public class VideobridgeStatistics
                 = StatsManagerBundleActivator.getBundleContext();
         Videobridge videobridge
                 = ServiceUtils2.getService(bundleContext, Videobridge.class);
+        if(videobridge == null) return;
         Videobridge.Statistics jvbStats = videobridge.getStatistics();
 
         int videoChannels = 0;
