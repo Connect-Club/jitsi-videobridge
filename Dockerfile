@@ -1,10 +1,9 @@
-FROM openjdk:8-jdk as builder
-#can not use ALPINE image because of SCTP lib
+FROM maven:3-jdk-8 as builder
 WORKDIR /build
-ADD https://apache-mirror.rbc.ru/pub/apache/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.zip maven.zip
+ADD pom.xml ./
+RUN mvn dependency:go-offline -B
 ADD . .
-RUN unzip maven.zip
-RUN apache-maven-3.6.3/bin/mvn clean package
+RUN mvn clean package
 
 FROM openjdk:8-jdk as app
 COPY --from=builder /build/target/jitsi-videobridge.docker.zip /tmp/jitsi-videobridge.zip
