@@ -230,7 +230,7 @@ public class Endpoint
      */
     private static final boolean OPEN_DATA_LOCALLY = true;
 
-    private final Map<Long, Integer> ssrcLastSequenceNumber = new ConcurrentHashMap<>();
+//    private final Map<Long, Integer> ssrcLastSequenceNumber = new ConcurrentHashMap<>();
 
 
     /**
@@ -650,13 +650,13 @@ public class Endpoint
                 }
             }
 
-            RtpPacket rtpPacket = (RtpPacket) packet;
-            Integer lastSequenceNumber = ssrcLastSequenceNumber.get(rtpPacket.getSsrc());
-            if(lastSequenceNumber != null) {
-                int newSequenceNumber = RtpUtils.applySequenceNumberDelta(lastSequenceNumber, 1);
-                rtpPacket.setSequenceNumber(newSequenceNumber);
-            }
-            ssrcLastSequenceNumber.put(rtpPacket.getSsrc(), rtpPacket.getSequenceNumber());
+//            RtpPacket rtpPacket = (RtpPacket) packet;
+//            Integer lastSequenceNumber = ssrcLastSequenceNumber.get(rtpPacket.getSsrc());
+//            if(lastSequenceNumber != null) {
+//                int newSequenceNumber = RtpUtils.applySequenceNumberDelta(lastSequenceNumber, 1);
+//                rtpPacket.setSequenceNumber(newSequenceNumber);
+//            }
+//            ssrcLastSequenceNumber.put(rtpPacket.getSsrc(), rtpPacket.getSequenceNumber());
 
             transceiver.sendPacket(packetInfo);
             return;
