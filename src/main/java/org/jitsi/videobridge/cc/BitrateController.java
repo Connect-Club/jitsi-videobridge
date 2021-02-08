@@ -593,6 +593,9 @@ public class BitrateController
         allowedEndpointIds.addAll(pinnedEndpointIds);
         allowedEndpointIds.addAll(selectedEndpointIds);
         allowedEndpointIds.removeIf(x -> !pinnedEndpointIds.contains(x) && !selectedEndpointIds.contains(x));
+        if(allowedEndpointIds.isEmpty()) {
+            firstMediaMs = -1;
+        }
 
         long nowMs = System.currentTimeMillis();
 
