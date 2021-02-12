@@ -230,6 +230,8 @@ public class Endpoint
      */
     private static final boolean OPEN_DATA_LOCALLY = true;
 
+    private final Map<Long, Long> ssrcLastTimestamp = new ConcurrentHashMap<>();
+    private final Map<Long, Integer> ssrcSequenceNumberDelta = new ConcurrentHashMap<>();
     private final Map<Long, Integer> ssrcLastSequenceNumber = new ConcurrentHashMap<>();
 
 
@@ -651,11 +653,27 @@ public class Endpoint
             }
 
             RtpPacket rtpPacket = (RtpPacket) packet;
-            Integer lastSequenceNumber = ssrcLastSequenceNumber.get(rtpPacket.getSsrc());
-            if(lastSequenceNumber != null) {
-                int newSequenceNumber = RtpUtils.applySequenceNumberDelta(lastSequenceNumber, 1);
+            int sequenceNumberDelta = ssrcSequenceNumberDelta.getOrDefault(rtpPacket.getSsrc(), 0);
+            if(sequenceNumberDelta != 0) {
+                int newSequenceNumber = RtpUtils.applySequenceNumberDelta(rtpPacket.getSequenceNumber(), sequenceNumberDelta);
                 rtpPacket.setSequenceNumber(newSequenceNumber);
             }
+
+            long currentTimestamp = clock.millis();
+            long lastTimestamp = ssrcLastTimestamp.getOrDefault(rtpPacket.getSsrc(), currentTimestamp);
+            int lastSequenceNumber = ssrcLastSequenceNumber.getOrDefault(rtpPacket.getSsrc(), rtpPacket.getSequenceNumber());
+            if(currentTimestamp - lastTimestamp > 600_000/*10min*/) {
+                int correction = lastSequenceNumber + 100 - rtpPacket.getSequenceNumber();
+
+                int newSequenceNumber = RtpUtils.applySequenceNumberDelta(rtpPacket.getSequenceNumber(), correction);
+                rtpPacket.setSequenceNumber(newSequenceNumber);
+                int newSequenceNumberDelta = RtpUtils.applySequenceNumberDelta(sequenceNumberDelta, correction);
+                ssrcSequenceNumberDelta.put(rtpPacket.getSsrc(), newSequenceNumberDelta);
+
+                logger.info(String.format("Made sequence number correction. NewSequenceNumberDelta=%s, LastSequenceNumber=%s, PacketSequenceNumber=%s", newSequenceNumberDelta, lastSequenceNumber, rtpPacket.getSequenceNumber()));
+            }
+
+            ssrcLastTimestamp.put(rtpPacket.getSsrc(), currentTimestamp);
             ssrcLastSequenceNumber.put(rtpPacket.getSsrc(), rtpPacket.getSequenceNumber());
 
             transceiver.sendPacket(packetInfo);
