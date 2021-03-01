@@ -18,6 +18,17 @@ sudo systemctl daemon-reload
 sudo systemctl enable filebeat
 filebeat version
 
+# node_exporter
+curl -OL https://github.com/prometheus/node_exporter/releases/download/v1.1.1/node_exporter-1.1.1.linux-amd64.tar.gz
+tar xvf node_exporter-1.1.1.linux-amd64.tar.gz
+sudo mv node_exporter-*/node_exporter /usr/local/bin/node_exporter
+rm -rf node_exporter-*
+node_exporter --version
+sudo useradd -rs /bin/false node_exporter
+sudo mv /tmp/node_exporter.service /lib/systemd/system
+sudo systemctl daemon-reload
+sudo systemctl enable node_exporter
+
 # configure kernel
 echo "net.core.rmem_max=10485760" | sudo tee -a /etc/sysctl.conf
 echo "net.core.netdev_max_backlog=100000" | sudo tee -a /etc/sysctl.conf
