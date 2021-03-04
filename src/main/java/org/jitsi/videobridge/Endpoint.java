@@ -662,8 +662,8 @@ public class Endpoint
             long currentTimestamp = clock.millis();
             long lastTimestamp = ssrcLastTimestamp.getOrDefault(rtpPacket.getSsrc(), currentTimestamp);
             int lastSequenceNumber = ssrcLastSequenceNumber.getOrDefault(rtpPacket.getSsrc(), rtpPacket.getSequenceNumber());
-            if(currentTimestamp - lastTimestamp > 300_000/*5min*/) {
-                int correction = lastSequenceNumber + 1 - rtpPacket.getSequenceNumber();
+            if(currentTimestamp - lastTimestamp > 600_000/*10min*/) {
+                int correction = lastSequenceNumber + 100 - rtpPacket.getSequenceNumber();
 
                 int newSequenceNumber = RtpUtils.applySequenceNumberDelta(rtpPacket.getSequenceNumber(), correction);
                 rtpPacket.setSequenceNumber(newSequenceNumber);
