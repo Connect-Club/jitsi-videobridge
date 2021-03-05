@@ -35,6 +35,11 @@
       "destination": "/tmp/filebeat.service"
     },
     {
+      "type": "file",
+      "source": "node_exporter.service",
+      "destination": "/tmp/node_exporter.service"
+    },
+    {
       "type": "shell",
       "scripts": [
         "jitsi-bridge.sh"
