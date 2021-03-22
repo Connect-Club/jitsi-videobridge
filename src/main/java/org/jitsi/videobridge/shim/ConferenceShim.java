@@ -26,6 +26,7 @@ import org.jitsi.videobridge.util.*;
 import org.jitsi.xmpp.extensions.colibri.*;
 import org.jitsi.xmpp.extensions.jingle.*;
 import org.jivesoftware.smack.packet.*;
+import org.json.simple.JSONObject;
 
 import java.io.*;
 import java.util.*;
@@ -289,23 +290,27 @@ public class ConferenceShim
         {
             List<ColibriConferenceIQ.ChannelCommon> channels = nonExpiredChannels.get(endpoint);
             boolean iceControlling = channels.stream().anyMatch(x->Boolean.TRUE.equals(x.isInitiator()));
-            boolean shadow = channels.stream()
+            boolean shadow = conferenceIQ.getEndpoints().stream()
+                    .anyMatch(x -> Objects.equals(endpoint, x.getId()) && "shadow".equals(x.getDisplayName()));
+            boolean allowIncomingMedia = channels.stream()
                     .filter(x -> x instanceof ColibriConferenceIQ.Channel)
                     .map(x -> (ColibriConferenceIQ.Channel)x)
-                    .allMatch(x -> "sendonly".equals(x.getDirection()));
-            ensureEndpointCreated(endpoint, iceControlling, shadow);
+                    .map(ColibriConferenceIQ.Channel::getDirection)
+                    .anyMatch(x -> "sendrecv".equals(x) || "recvonly".equals(x));
+
+            JSONObject notificationInfo = new JSONObject();
+            notificationInfo.put("endpointAllowIncomingMedia", allowIncomingMedia);
+            ensureEndpointCreated(endpoint, iceControlling, shadow, notificationInfo);
         }
 
-        for (ColibriConferenceIQ.ChannelBundle channelBundle
-            : conferenceIQ.getChannelBundles())
+        for (ColibriConferenceIQ.Endpoint endpoint : conferenceIQ.getEndpoints())
         {
-            ensureEndpointCreated(channelBundle.getId(), false, false);
+            ensureEndpointCreated(endpoint.getId(), false, "shadow".equals(endpoint.getDisplayName()), null);
         }
 
-        for (ColibriConferenceIQ.Endpoint endpoint
-            : conferenceIQ.getEndpoints())
+        for (ColibriConferenceIQ.ChannelBundle channelBundle : conferenceIQ.getChannelBundles())
         {
-            ensureEndpointCreated(endpoint.getId(), false, false);
+            ensureEndpointCreated(channelBundle.getId(), false, false, null);
         }
     }
 
@@ -316,14 +321,14 @@ public class ConferenceShim
      * @param iceControlling ICE control role of transport of newly created
      * endpoint
      */
-    private void ensureEndpointCreated(String endpointId, boolean iceControlling, boolean shadow)
+    private void ensureEndpointCreated(String endpointId, boolean iceControlling, boolean shadow, JSONObject infoForNotification)
     {
         if (conference.getLocalEndpoint(endpointId) != null)
         {
             return;
         }
 
-        conference.createLocalEndpoint(endpointId, iceControlling, shadow);
+        conference.createLocalEndpoint(endpointId, iceControlling, shadow, infoForNotification);
     }
 
     /**

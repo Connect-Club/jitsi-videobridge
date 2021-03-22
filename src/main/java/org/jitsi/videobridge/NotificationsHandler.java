@@ -83,7 +83,7 @@ public class NotificationsHandler extends EventHandlerActivator {
             }
         }
         String eventType = null;
-        Endpoint endpoint = null;
+        AbstractEndpoint endpoint = null;
         Conference conference = null;
         switch (event.getTopic()) {
             case EventFactory.CONFERENCE_CREATED_TOPIC:
@@ -96,11 +96,11 @@ public class NotificationsHandler extends EventHandlerActivator {
                 break;
             case EventFactory.ENDPOINT_CREATED_TOPIC:
                 eventType = "ENDPOINT_CREATED";
-                endpoint = (Endpoint) event.getProperty(EventFactory.EVENT_SOURCE);
+                endpoint = (AbstractEndpoint) event.getProperty(EventFactory.EVENT_SOURCE);
                 break;
             case EventFactory.ENDPOINT_EXPIRED_TOPIC:
                 eventType = "ENDPOINT_EXPIRED";
-                endpoint = (Endpoint) event.getProperty(EventFactory.EVENT_SOURCE);
+                endpoint = (AbstractEndpoint) event.getProperty(EventFactory.EVENT_SOURCE);
                 break;
         }
         if (eventType != null) {
@@ -118,12 +118,24 @@ public class NotificationsHandler extends EventHandlerActivator {
                     "conferenceGid", conference.getGid()
             ));
             if (endpoint != null) {
-                if (endpoint.isShadow()) {
-                    logger.info("This is shadow endpoint. Ignoring notification");
+                if(endpoint instanceof Endpoint) {
+                    Endpoint endpnt = (Endpoint) endpoint;
+                    if (endpnt.isShadow()) {
+                        logger.info("This is shadow endpoint. Ignoring notification");
+                        return;
+                    }
+                    notification.put("endpointId", endpnt.getID());
+                    notification.put("endpointUuid", endpnt.getUuid().toString());
+                    if(event.getTopic().equals(EventFactory.ENDPOINT_CREATED_TOPIC)) {
+                        JSONObject infoForNotification = endpnt.getInfoForNotification();
+                        if(infoForNotification != null) {
+                            notification.putAll(endpnt.getInfoForNotification());
+                        }
+                    }
+                } else {
+                    logger.info(String.format("This is endpoint of type '%s'. Ignoring notification", endpoint.getClass().toString()));
                     return;
                 }
-                notification.put("endpointId", endpoint.getID());
-                notification.put("endpointUuid", endpoint.getUuid().toString());
             }
 
             String notificationStr = notification.toJSONString();

@@ -223,6 +223,7 @@ public class Endpoint
     private final Clock clock;
 
     private final boolean shadow;
+    private final JSONObject infoForNotification;
 
     /**
      * Whether or not the bridge should be the peer which opens the data channel
@@ -274,11 +275,13 @@ public class Endpoint
         Logger parentLogger,
         boolean iceControlling,
         boolean shadow,
+        JSONObject infoForNotification,
         Clock clock)
     {
         super(conference, id, parentLogger);
 
         this.shadow = shadow;
+        this.infoForNotification = infoForNotification;
         this.clock = clock;
 
         creationTime = clock.instant();
@@ -362,9 +365,10 @@ public class Endpoint
         Conference conference,
         Logger parentLogger,
         boolean iceControlling,
-        boolean shadow)
+        boolean shadow,
+        JSONObject infoForNotification)
     {
-        this(id, conference, parentLogger, iceControlling, shadow, Clock.systemUTC());
+        this(id, conference, parentLogger, iceControlling, shadow, infoForNotification, Clock.systemUTC());
     }
 
     /**
@@ -1664,6 +1668,10 @@ public class Endpoint
 
     public boolean isShadow() {
         return shadow;
+    }
+
+    public JSONObject getInfoForNotification() {
+        return infoForNotification;
     }
 
 }
