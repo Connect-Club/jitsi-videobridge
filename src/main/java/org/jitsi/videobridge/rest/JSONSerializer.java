@@ -18,6 +18,7 @@ package org.jitsi.videobridge.rest;
 import java.util.*;
 
 import org.jetbrains.annotations.*;
+import org.jitsi.videobridge.rest.root.colibri.ColibriEndpointIQ;
 import org.jitsi.videobridge.stats.*;
 import org.jitsi.xmpp.extensions.*;
 import org.jitsi.xmpp.extensions.colibri.*;
@@ -347,6 +348,11 @@ public final class JSONSerializer
         else
         {
             String id = endpoint.getId();
+            UUID uuid = null;
+            if(endpoint instanceof ColibriEndpointIQ) {
+                uuid = ((ColibriEndpointIQ) endpoint).getUuid();
+            }
+
             String statsId = endpoint.getStatsId();
             String displayName = endpoint.getDisplayName();
 
@@ -357,6 +363,12 @@ public final class JSONSerializer
                 jsonObject.put(
                     ColibriConferenceIQ.Endpoint.ID_ATTR_NAME,
                     id);
+            }
+            // uuid
+            if(uuid != null) {
+                jsonObject.put(
+                        ColibriEndpointIQ.UUID_ATTR_NAME,
+                        uuid);
             }
             // statsId
             if (statsId != null)

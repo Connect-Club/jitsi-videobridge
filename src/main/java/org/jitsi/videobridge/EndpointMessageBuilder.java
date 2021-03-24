@@ -78,6 +78,9 @@ public class EndpointMessageBuilder
     public static final String COLIBRI_CLASS_PINNED_ENDPOINTS_CHANGED
         = "PinnedEndpointsChangedEvent";
 
+    public static final String COLIBRI_CLASS_PINNED_UUID_ENDPOINTS_CHANGED
+        = "PinnedUUIDEndpointsChangedEvent";
+
     /**
      * The {@link Videobridge#COLIBRI_CLASS} value indicating a
      * {@code ReceiverVideoConstraint} message.

@@ -22,15 +22,13 @@ import org.jitsi.utils.*;
 import org.jitsi.utils.logging2.*;
 import org.jitsi.videobridge.*;
 import org.jitsi.videobridge.octo.*;
+import org.jitsi.videobridge.rest.root.colibri.ColibriEndpointIQ;
 import org.jitsi.videobridge.util.*;
 import org.jitsi.xmpp.extensions.colibri.*;
 import org.jitsi.xmpp.extensions.jingle.*;
-import org.jivesoftware.smack.packet.*;
 import org.json.simple.JSONObject;
 
-import java.io.*;
 import java.util.*;
-import java.util.function.*;
 import java.util.stream.*;
 
 /**
@@ -132,8 +130,8 @@ public class ConferenceShim
     {
         conference.getEndpoints().forEach(
                 en -> iq.addEndpoint(
-                        new ColibriConferenceIQ.Endpoint(
-                                en.getID(), en.getStatsId(), en.getDisplayName())));
+                        new ColibriEndpointIQ(
+                                en.getID(), en.getUuid(), en.getStatsId(), en.getDisplayName())));
     }
 
     /**

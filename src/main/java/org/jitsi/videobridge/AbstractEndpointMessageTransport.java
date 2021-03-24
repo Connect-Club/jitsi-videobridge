@@ -24,6 +24,7 @@ import org.json.simple.*;
 import org.json.simple.parser.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.jitsi.videobridge.EndpointMessageBuilder.*;
 
@@ -119,6 +120,9 @@ public abstract class AbstractEndpointMessageTransport
                     break;
                 case COLIBRI_CLASS_PINNED_ENDPOINTS_CHANGED:
                     onPinnedEndpointsChangedEvent(src, jsonObject);
+                    break;
+                case COLIBRI_CLASS_PINNED_UUID_ENDPOINTS_CHANGED:
+                    onPinnedUUIDEndpointsChangedEvent(src, jsonObject);
                     break;
                 case COLIBRI_CLASS_CLIENT_HELLO:
                     onClientHello(src, jsonObject);
@@ -284,6 +288,31 @@ public abstract class AbstractEndpointMessageTransport
         onPinnedEndpointsChangedEvent(jsonObject, newPinnedIDs);
     }
 
+    protected void onPinnedUUIDEndpointsChangedEvent(
+            @SuppressWarnings("unused") Object src,
+            JSONObject jsonObject
+    ) {
+        // Find the new pinned endpoint.
+        Object o = jsonObject.get("pinnedUUIDEndpoints");
+        if (!(o instanceof JSONArray))
+        {
+            logger.warn("Received invalid or unexpected JSON: " + jsonObject);
+            return;
+        }
+
+        JSONArray jsonArray = (JSONArray) o;
+        Set<UUID> newPinnedUUIDEndpoints = filterStringsToSet(jsonArray).stream()
+                .map(UUID::fromString)
+                .collect(Collectors.toSet());
+
+        if (logger.isDebugEnabled())
+        {
+            logger.debug("Pinned UUID`s " + newPinnedUUIDEndpoints);
+        }
+
+        onPinnedUUIDEndpointsChangedEvent(jsonObject, newPinnedUUIDEndpoints);
+    }
+
     /**
      * Notifies this {@code Endpoint} that a {@code PinnedEndpointsChangedEvent}
      * has been received.
@@ -393,6 +422,11 @@ public abstract class AbstractEndpointMessageTransport
     protected abstract void onPinnedEndpointsChangedEvent(
         JSONObject jsonObject,
         Set<String> newPinnedEndpoints);
+
+    protected abstract void onPinnedUUIDEndpointsChangedEvent(
+            JSONObject jsonObject,
+            Set<UUID> newPinnedUUIDEndpoints
+    );
 
     /**
      * Notifies local or remote endpoints that a selected event has been received.

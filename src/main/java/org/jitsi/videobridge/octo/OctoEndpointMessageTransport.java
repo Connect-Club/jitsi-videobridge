@@ -21,6 +21,7 @@ import org.jitsi.videobridge.websocket.*;
 import org.json.simple.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Extends {@link AbstractEndpointMessageTransport} for the purposes of Octo.
@@ -86,6 +87,17 @@ class OctoEndpointMessageTransport
         {
             targetEndpoint.pinnedEndpointsChanged(newPinnedEndpoints);
         }
+    }
+
+    @Override
+    protected void onPinnedUUIDEndpointsChangedEvent(JSONObject jsonObject, Set<UUID> newPinnedUUIDEndpoints) {
+        Set<String> newPinnedEndpoints = getConference().getEndpoints().stream()
+                .filter(x -> x instanceof Endpoint)
+                .map(x -> (Endpoint)x)
+                .filter(x -> newPinnedUUIDEndpoints.contains(x.getUuid()))
+                .map(AbstractEndpoint::getID)
+                .collect(Collectors.toSet());
+        onPinnedEndpointsChangedEvent(jsonObject, newPinnedEndpoints);
     }
 
     /**

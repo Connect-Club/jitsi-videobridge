@@ -28,9 +28,11 @@ import java.lang.ref.WeakReference;
 import java.util.Collections;
 import java.util.Queue;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static org.jitsi.videobridge.EndpointMessageBuilder.createServerHelloEvent;
 
@@ -184,6 +186,18 @@ class EndpointMessageTransport
     {
         endpoint.pinnedEndpointsChanged(newPinnedEndpoints);
         propagateJSONObject(jsonObject);
+    }
+
+    protected void onPinnedUUIDEndpointsChangedEvent(
+            JSONObject jsonObject, Set<UUID> newPinnedUUIDEndpoints
+    ) {
+        Set<String> newPinnedEndpoints = getConference().getEndpoints().stream()
+                .filter(x -> x instanceof Endpoint)
+                .map(x -> (Endpoint)x)
+                .filter(x -> newPinnedUUIDEndpoints.contains(x.getUuid()))
+                .map(AbstractEndpoint::getID)
+                .collect(Collectors.toSet());
+        onPinnedEndpointsChangedEvent(jsonObject, newPinnedEndpoints);
     }
 
     /**
