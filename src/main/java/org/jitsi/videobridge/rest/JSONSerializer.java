@@ -368,7 +368,7 @@ public final class JSONSerializer
             if(uuid != null) {
                 jsonObject.put(
                         ColibriEndpointIQ.UUID_ATTR_NAME,
-                        uuid);
+                        uuid.toString());
             }
             // statsId
             if (statsId != null)
