@@ -23,7 +23,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.jitsi.xmpp.extensions.*;
 import org.jitsi.xmpp.extensions.colibri.*;
 import org.jitsi.xmpp.extensions.jingle.*;
+import org.jitsi.xmpp.extensions.jitsimeet.SSRCInfoPacketExtension;
 import org.json.simple.*;
+import org.jxmpp.jid.impl.JidCreate;
+import org.jxmpp.stringprep.XmppStringprepException;
 
 /**
  * Implements (utility) functions to deserialize instances of
@@ -127,32 +130,61 @@ public final class JSONDeserializer
             JSONObject channel,
             ColibriConferenceIQ.Content contentIQ)
     {
+        if (channel == null) {
+            return null;
+        }
         ColibriConferenceIQ.Channel channelIQ;
 
-        if (channel == null)
-        {
-            channelIQ = null;
-        }
-        else
-        {
+        Object type = channel.get(ColibriConferenceIQ.Channel.TYPE_ATTR_NAME);
+        if(type != null && type.toString().equals(ColibriConferenceIQ.OctoChannel.TYPE)) {
+            channelIQ = new ColibriConferenceIQ.OctoChannel();
+
+            Object payloadTypes = channel.get(JSONSerializer.PAYLOAD_TYPES);
+            Object relays = channel.get(JSONSerializer.RELAYS);
+            Object sources = channel.get(JSONSerializer.SOURCES);
+            Object sourceGroups = channel.get(JSONSerializer.SOURCE_GROUPS);
+
+            deserializeChannelCommon(channel, channelIQ);
+
+            // payloadTypes
+            if (payloadTypes != null)
+            {
+                deserializePayloadTypes((JSONArray) payloadTypes, channelIQ);
+            }
+            // relays
+            if(relays != null) {
+                deserializeRelays((JSONArray)relays, (ColibriConferenceIQ.OctoChannel)channelIQ);
+            }
+            // sources
+            if (sources != null)
+            {
+                deserializeSources((JSONArray) sources, channelIQ);
+            }
+            // source groups
+            if (sourceGroups != null)
+            {
+                deserializeSourceGroups((JSONArray) sourceGroups, channelIQ);
+            }
+        } else {
+            channelIQ = new ColibriConferenceIQ.Channel();
+
             Object direction
-                = channel.get(ColibriConferenceIQ.Channel.DIRECTION_ATTR_NAME);
+                    = channel.get(ColibriConferenceIQ.Channel.DIRECTION_ATTR_NAME);
             Object lastN
-                = channel.get(ColibriConferenceIQ.Channel.LAST_N_ATTR_NAME);
+                    = channel.get(ColibriConferenceIQ.Channel.LAST_N_ATTR_NAME);
             Object receivingSimulcastStream
-                = channel.get(
-                        ColibriConferenceIQ.Channel.RECEIVING_SIMULCAST_LAYER);
+                    = channel.get(
+                    ColibriConferenceIQ.Channel.RECEIVING_SIMULCAST_LAYER);
             Object payloadTypes = channel.get(JSONSerializer.PAYLOAD_TYPES);
             Object rtpLevelRelayType
-                = channel.get(
-                        ColibriConferenceIQ.Channel
+                    = channel.get(
+                    ColibriConferenceIQ.Channel
                             .RTP_LEVEL_RELAY_TYPE_ATTR_NAME);
             Object sources = channel.get(JSONSerializer.SOURCES);
             Object sourceGroups = channel.get(JSONSerializer.SOURCE_GROUPS);
             Object ssrcs = channel.get(JSONSerializer.SSRCS);
             Object headerExtensions = channel.get(JSONSerializer.RTP_HEADER_EXTS);
 
-            channelIQ = new ColibriConferenceIQ.Channel();
             deserializeChannelCommon(channel, channelIQ);
 
             // direction
@@ -169,7 +201,7 @@ public final class JSONDeserializer
             if (receivingSimulcastStream != null)
             {
                 channelIQ.setReceivingSimulcastLayer(
-                    objectToInteger(receivingSimulcastStream));
+                        objectToInteger(receivingSimulcastStream));
             }
             // payloadTypes
             if (payloadTypes != null)
@@ -203,9 +235,9 @@ public final class JSONDeserializer
                         (JSONArray) headerExtensions,
                         channelIQ);
             }
-
-            contentIQ.addChannel(channelIQ);
         }
+
+        contentIQ.addChannel(channelIQ);
         return channelIQ;
     }
 
@@ -819,6 +851,8 @@ public final class JSONDeserializer
         }
         else
         {
+            sourceIQ = new SourcePacketExtension();
+
             long ssrc;
 
             try
@@ -831,11 +865,30 @@ public final class JSONDeserializer
             }
             if (ssrc == -1)
             {
-                sourceIQ = null;
+                if (source instanceof JSONObject) {
+                    JSONObject jsonSource = (JSONObject)source;
+                    Object ssrcObject = jsonSource.get("ssrc");
+                    Object endpointIdObject = jsonSource.get("endpointId");
+                    Object endpointUuidObject = jsonSource.get("endpointUuid");
+
+                    if(ssrcObject != null) {
+                        sourceIQ.setSSRC(deserializeSSRC(ssrcObject));
+                    }
+                    if(endpointIdObject != null && endpointUuidObject != null) {
+                        SSRCInfoPacketExtension ssrcInfoPacketExtension = new SSRCInfoPacketExtension();
+                        try {
+                            String endpointId = endpointIdObject.toString();
+                            String endpointUuid = endpointUuidObject.toString();
+                            ssrcInfoPacketExtension.setOwner(JidCreate.from(endpointUuid, endpointUuid, endpointId));
+                        } catch (XmppStringprepException e) {
+                            throw new RuntimeException(e);
+                        }
+                        sourceIQ.addChildExtension(ssrcInfoPacketExtension);
+                    }
+                }
             }
             else
             {
-                sourceIQ = new SourcePacketExtension();
                 sourceIQ.setSSRC(ssrc);
             }
         }
@@ -994,6 +1047,18 @@ public final class JSONDeserializer
                 }
 
                 channelIQ.addSSRC(ssrcIQ);
+            }
+        }
+    }
+
+    public static void deserializeRelays(
+            JSONArray relays,
+            ColibriConferenceIQ.OctoChannel octoChannelIQ
+    ) {
+        if ((relays != null) && !relays.isEmpty())
+        {
+            for(Object relay : relays) {
+                octoChannelIQ.addRelay(relay.toString());
             }
         }
     }

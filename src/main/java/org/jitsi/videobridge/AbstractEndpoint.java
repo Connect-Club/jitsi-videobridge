@@ -44,6 +44,8 @@ import java.util.stream.Collectors;
  */
 public abstract class AbstractEndpoint extends PropertyChangeNotifier
 {
+    private final Instant timeCreated;
+
     /**
      * The name of the <tt>Endpoint</tt> property <tt>pinnedEndpoint</tt> which
      * specifies the ID of the currently pinned <tt>Endpoint</tt> of this
@@ -174,16 +176,17 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
      * part of.
      * @param id the ID of the endpoint.
      */
-    protected AbstractEndpoint(Conference conference, String id, Logger parentLogger)
+    protected AbstractEndpoint(Conference conference, String id, UUID uuid, Logger parentLogger)
     {
         this.conference = Objects.requireNonNull(conference, "conference");
         this.id = Objects.requireNonNull(id, "id");
-        this.uuid = UUID.randomUUID();
+        this.uuid = uuid == null ? UUID.randomUUID() : uuid;
         Map<String,String> context = ImmutableMap.of(
                 "epId", this.id,
                 "epUuid", this.uuid.toString()
         );
         logger = parentLogger.createChildLogger(this.getClass().getName(), context);
+        timeCreated = Instant.now();
     }
 
     /**
@@ -466,4 +469,8 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
      * Adds an RTP extension to this endpoint
      */
     public abstract void addRtpExtension(RtpExtension rtpExtension);
+
+    public Instant getTimeCreated() {
+        return timeCreated;
+    }
 }

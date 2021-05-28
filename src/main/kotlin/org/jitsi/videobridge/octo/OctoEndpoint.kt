@@ -26,6 +26,8 @@ import org.jitsi.videobridge.AbstractEndpoint
 import org.jitsi.videobridge.Conference
 import org.jitsi.videobridge.rest.root.colibri.debug.EndpointDebugFeatures
 import org.jitsi_modified.impl.neomedia.rtp.MediaStreamTrackDesc
+import java.time.Instant
+import java.util.*
 
 /**
  * Represents an endpoint in a conference, which is connected to another
@@ -36,9 +38,10 @@ import org.jitsi_modified.impl.neomedia.rtp.MediaStreamTrackDesc
 class OctoEndpoint(
     conference: Conference,
     id: String,
+    uuid: UUID,
     private val octoEndpoints: OctoEndpoints,
     parentLogger: Logger
-) : AbstractEndpoint(conference, id, parentLogger), ConfOctoTransport.IncomingOctoEpPacketHandler {
+) : AbstractEndpoint(conference, id, uuid, parentLogger), ConfOctoTransport.IncomingOctoEpPacketHandler {
 
     private val transceiver = OctoTransceiver(id, logger).apply {
         setAudioLevelListener(conference.audioLevelListener)
@@ -134,5 +137,10 @@ class OctoEndpoint(
     override fun isSendingVideo(): Boolean {
         // TODO implement detection
         return true
+    }
+
+    override fun getLastIncomingActivity(): Instant {
+        val packetIOActivity = transceiver.packetIOActivity
+        return packetIOActivity.lastIncomingActivityInstant
     }
 }

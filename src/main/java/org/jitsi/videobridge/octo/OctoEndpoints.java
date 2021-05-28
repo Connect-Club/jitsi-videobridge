@@ -89,15 +89,15 @@ import java.util.stream.*;
      /**
       * Updates the list of {@link OctoEndpoint}s maintained by this instance.
       */
-     boolean setEndpoints(Set<String> endpointIds)
+     boolean setEndpoints(Map<String, UUID> endpointIds)
      {
          Set<String> toExpire = new HashSet<>(octoEndpointIds);
-         toExpire.removeAll(endpointIds);
+         toExpire.removeAll(endpointIds.keySet());
 
-         Set<String> toCreate = new HashSet<>(endpointIds);
-         toCreate.removeAll(octoEndpointIds);
+         Map<String, UUID> toCreate = new HashMap<>(endpointIds);
+         toCreate.keySet().removeAll(octoEndpointIds);
 
-         toCreate.forEach((id) -> addEndpoint(id, logger));
+         toCreate.forEach((id, uuid) -> addEndpoint(id, uuid, logger));
          toExpire.forEach(id ->
          {
              AbstractEndpoint endpoint = conference.getEndpoint(id);
@@ -107,7 +107,7 @@ import java.util.stream.*;
              }
          });
 
-         octoEndpointIds = new HashSet<>(endpointIds);
+         octoEndpointIds = new HashSet<>(endpointIds.keySet());
 
          return !toCreate.isEmpty() || !toExpire.isEmpty();
      }
@@ -163,10 +163,10 @@ import java.util.stream.*;
       * @param id the ID for the new instance.
       * @return the newly created instance.
       */
-     private OctoEndpoint addEndpoint(String id, Logger parentLogger)
+     private OctoEndpoint addEndpoint(String id, UUID uuid, Logger parentLogger)
      {
          logger.info("Creating Octo endpoint " + id);
-         OctoEndpoint endpoint = new OctoEndpoint(conference, id, this, parentLogger);
+         OctoEndpoint endpoint = new OctoEndpoint(conference, id, uuid, this, parentLogger);
 
          payloadTypes.forEach(endpoint::addPayloadType);
          rtpExtensions.forEach(endpoint::addRtpExtension);

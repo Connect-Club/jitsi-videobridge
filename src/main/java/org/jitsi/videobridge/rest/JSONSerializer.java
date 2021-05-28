@@ -141,6 +141,9 @@ public final class JSONSerializer
     static final String WEBSOCKET_LIST
             = WebSocketPacketExtension.ELEMENT_NAME + "s";
 
+    static final String RELAYS
+            = ColibriConferenceIQ.OctoChannel.RELAY_ELEMENT_NAME + "s";
+
     /**
      * The name of the JSON pair which specifies the value of the
      * <tt>namespace</tt> property of <tt>IceUdpTransportPacketExtension</tt>.

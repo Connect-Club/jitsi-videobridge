@@ -321,11 +321,21 @@ public class ConfOctoTransport extends PropertyChangeNotifier
         // Jicofo sends an empty "source" when it wants to clear the sources.
         // This manifests as a failure to find an 'owner', hence we clear the
         // nulls here.
-        Set<String> endpointIds
+        Map<String, UUID> endpointIds
                 = allSources.stream()
                     .map(MediaStreamTrackFactory::getOwner)
                     .filter(Objects::nonNull)
-                    .collect(Collectors.toSet());
+                    .collect(Collectors.toMap(
+                            x -> x.getResourceOrEmpty().toString(),
+                            x -> UUID.fromString(x.getLocalpartOrNull().toString()),
+                            (u,v) -> {
+                                if (!Objects.equals(u,v)) {
+                                    throw new IllegalStateException("Endpoint UUID is not equal");
+                                }
+                                return u;
+                            },
+                            HashMap::new
+                    ));
 
         octoEndpoints.setEndpoints(endpointIds);
 
@@ -340,18 +350,18 @@ public class ConfOctoTransport extends PropertyChangeNotifier
         // often.
         conference.endpointTracksChanged(null);
 
-        endpointIds.forEach(endpointId ->
+        endpointIds.keySet().forEach(endpointId ->
         {
             Map<MediaType, Set<Long>> endpointSsrcsByMediaType = new HashMap<>();
             Set<Long> epAudioSsrcs = audioSources.stream()
-                    .filter(source -> endpointId.equals(MediaStreamTrackFactory.getOwner(source)))
+                    .filter(source -> endpointId.equals(MediaStreamTrackFactory.getOwnerResource(source)))
                     .filter(Objects::nonNull)
                     .map(SourcePacketExtension::getSSRC)
                     .collect(Collectors.toSet());
             endpointSsrcsByMediaType.put(MediaType.AUDIO, epAudioSsrcs);
 
             Set<Long> epVideoSsrcs = videoSources.stream()
-                    .filter(source -> endpointId.equals(MediaStreamTrackFactory.getOwner(source)))
+                    .filter(source -> endpointId.equals(MediaStreamTrackFactory.getOwnerResource(source)))
                     .filter(Objects::nonNull)
                     .map(SourcePacketExtension::getSSRC)
                     .collect(Collectors.toSet());
@@ -425,7 +435,7 @@ public class ConfOctoTransport extends PropertyChangeNotifier
         {
             logger.info("Expiring");
             setTargets(Collections.emptySet());
-            octoEndpoints.setEndpoints(Collections.emptySet());
+            octoEndpoints.setEndpoints(Collections.emptyMap());
             outgoingPacketQueues.values().forEach(PacketInfoQueue::close);
             outgoingPacketQueues.clear();
         }

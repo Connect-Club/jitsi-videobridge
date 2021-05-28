@@ -21,6 +21,7 @@ import org.jitsi.osgi.EventHandlerActivator;
 import org.jitsi.osgi.ServiceUtils2;
 import org.jitsi.utils.logging2.Logger;
 import org.jitsi.utils.logging2.LoggerImpl;
+import org.jitsi.videobridge.octo.OctoEndpoint;
 import org.osgi.framework.BundleContext;
 
 import java.time.Clock;
@@ -74,7 +75,7 @@ public class EndpointConnectionStatus
     /**
      * The map of <tt>Endpoint</tt>s and it connection status.
      */
-    private final Map<Endpoint, Boolean> endpointConnectionStatusMap = new HashMap<>();
+    private final Map<AbstractEndpoint, Boolean> endpointConnectionStatusMap = new HashMap<>();
 
     /**
      * The timer which runs the periodical connection status probing operation.
@@ -188,23 +189,20 @@ public class EndpointConnectionStatus
      */
     private void monitorEndpointActivity(AbstractEndpoint abstractEndpoint)
     {
-        if (!(abstractEndpoint instanceof Endpoint))
+        if (abstractEndpoint instanceof Endpoint)
         {
-            // We only care about endpoints/participants connected to this
-            // bridge, which are of type Endpoint.
-            return;
+            Endpoint endpoint = (Endpoint) abstractEndpoint;
+            if(endpoint.isShadow()) {
+                return;
+            }
         }
 
-        Endpoint endpoint = (Endpoint) abstractEndpoint;
-        if(endpoint.isShadow()) {
-            return;
-        }
-        String endpointId = endpoint.getID();
+        String endpointId = abstractEndpoint.getID();
 
         Instant now = clock.instant();
-        Instant mostRecentChannelCreated
-                = endpoint.getMostRecentChannelCreatedTime();
-        Instant lastActivity = endpoint.getLastIncomingActivity();
+        Instant timeCreated
+                = abstractEndpoint.getTimeCreated();
+        Instant lastActivity = abstractEndpoint.getLastIncomingActivity();
 
         // Transport not initialized yet
         if (lastActivity == ClockUtils.NEVER)
@@ -212,7 +210,7 @@ public class EndpointConnectionStatus
             // Here we check if it's taking too long for the endpoint to connect
             // We're doing that by checking how much time has elapsed since
             // the first endpoint's channel has been created.
-            Duration timeSinceCreated = Duration.between(mostRecentChannelCreated, now);
+            Duration timeSinceCreated = Duration.between(timeCreated, now);
             if (timeSinceCreated.compareTo(Config.getFirstTransferTimeout()) > 0)
             {
                 if (logger.isDebugEnabled())
@@ -222,7 +220,7 @@ public class EndpointConnectionStatus
                 // Let the logic below mark endpoint as inactive.
                 // Beware that FIRST_TRANSFER_TIMEOUT constant MUST be greater
                 // than MAX_INACTIVITY_LIMIT for this logic to work.
-                lastActivity = mostRecentChannelCreated;
+                lastActivity = timeCreated;
             }
             else
             {
@@ -239,7 +237,7 @@ public class EndpointConnectionStatus
         boolean changed = false;
         synchronized (endpointConnectionStatusMap)
         {
-            Boolean connectionStatus = endpointConnectionStatusMap.get(endpoint);
+            Boolean connectionStatus = endpointConnectionStatusMap.get(abstractEndpoint);
             if(connectionStatus == null || connectionStatus != active) {
                 if(active) {
                     logger.debug(endpointId + " has reconnected or has just connected");
@@ -247,7 +245,7 @@ public class EndpointConnectionStatus
                     logger.debug(endpointId + " is considered disconnected");
                 }
 
-                endpointConnectionStatusMap.put(endpoint, active);
+                endpointConnectionStatusMap.put(abstractEndpoint, active);
                 changed = true;
             }
         }
@@ -255,7 +253,7 @@ public class EndpointConnectionStatus
         if (changed)
         {
             // Broadcast connection "active/inactive" message over data channels
-            sendEndpointConnectionStatus(endpoint, active, null);
+            sendEndpointConnectionStatus(abstractEndpoint, active, null);
         }
 
         if (!active && logger.isDebugEnabled())
@@ -275,7 +273,7 @@ public class EndpointConnectionStatus
      * to all endpoints.
      */
     private void sendEndpointConnectionStatus(
-        Endpoint subjectEndpoint, boolean isConnected, Endpoint msgReceiver)
+        AbstractEndpoint subjectEndpoint, boolean isConnected, Endpoint msgReceiver)
     {
         Conference conference = subjectEndpoint.getConference();
         if (conference != null)
@@ -306,7 +304,7 @@ public class EndpointConnectionStatus
         }
     }
 
-    private void sendEndpointExpiredEvent(Endpoint subjectEndpoint) {
+    private void sendEndpointExpiredEvent(AbstractEndpoint subjectEndpoint) {
         Conference conference = subjectEndpoint.getConference();
         if (conference != null)
         {
@@ -328,11 +326,11 @@ public class EndpointConnectionStatus
      */
     private void cleanupExpiredEndpointsStatus()
     {
-        Map<Endpoint, Boolean> removedOrReplacedEndpointsWithLastStatus = new HashMap<>();
+        Map<AbstractEndpoint, Boolean> removedOrReplacedEndpointsWithLastStatus = new HashMap<>();
         synchronized (endpointConnectionStatusMap)
         {
             endpointConnectionStatusMap.entrySet().removeIf(entry -> {
-                Endpoint endpoint = entry.getKey();
+                AbstractEndpoint endpoint = entry.getKey();
                 Conference conference = endpoint.getConference();
                 AbstractEndpoint endpointFromConference =
                         conference.getEndpoint(endpoint.getID());
@@ -349,7 +347,7 @@ public class EndpointConnectionStatus
             if (logger.isDebugEnabled())
             {
                 endpointConnectionStatusMap.keySet().stream()
-                    .filter(Endpoint::isExpired)
+                    .filter(AbstractEndpoint::isExpired)
                     .forEach(
                         e ->
                             logger.debug("Endpoint has expired: " + e.getID()
@@ -357,7 +355,7 @@ public class EndpointConnectionStatus
             }
         }
 
-        for (Map.Entry<Endpoint, Boolean> endpointStatusEntry: removedOrReplacedEndpointsWithLastStatus.entrySet())
+        for (Map.Entry<AbstractEndpoint, Boolean> endpointStatusEntry: removedOrReplacedEndpointsWithLastStatus.entrySet())
         {
             if(endpointStatusEntry.getValue()) {
                 sendEndpointConnectionStatus(endpointStatusEntry.getKey(), false, null);
@@ -398,7 +396,7 @@ public class EndpointConnectionStatus
         //
         // Looping over all inactive endpoints of all conferences maybe is not
         // the most efficient, but it should not be extremely large number.
-        Map<Endpoint,Boolean> endpoints;
+        Map<AbstractEndpoint,Boolean> endpoints;
         synchronized (endpointConnectionStatusMap)
         {
             endpoints = endpointConnectionStatusMap.entrySet().stream()
@@ -406,7 +404,7 @@ public class EndpointConnectionStatus
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         }
 
-        for (Map.Entry<Endpoint,Boolean> e: endpoints.entrySet())
+        for (Map.Entry<AbstractEndpoint,Boolean> e: endpoints.entrySet())
         {
             sendEndpointConnectionStatus(e.getKey(), e.getValue(), endpoint);
         }

@@ -278,7 +278,7 @@ public class Endpoint
         JSONObject infoForNotification,
         Clock clock)
     {
-        super(conference, id, parentLogger);
+        super(conference, id, null, parentLogger);
 
         this.shadow = shadow;
         this.infoForNotification = infoForNotification;
@@ -726,6 +726,14 @@ public class Endpoint
     public void addRtpExtension(RtpExtension rtpExtension)
     {
         transceiver.addRtpExtension(rtpExtension);
+    }
+
+    @Override
+    public Instant getTimeCreated() {
+        return channelShims.stream()
+                .map(ChannelShim::getCreationTimestamp)
+                .max(Comparator.comparing(Function.identity()))
+                .orElse(ClockUtils.NEVER);
     }
 
     /**
@@ -1467,17 +1475,6 @@ public class Endpoint
         {
             transceiver.addSsrcAssociation(new RemoteSsrcAssociation(primarySsrc, secondarySsrc, type));
         }
-    }
-
-    /**
-     * @return  the timestamp of the most recently created channel shim.
-     */
-    Instant getMostRecentChannelCreatedTime()
-    {
-        return channelShims.stream()
-            .map(ChannelShim::getCreationTimestamp)
-            .max(Comparator.comparing(Function.identity()))
-            .orElse(ClockUtils.NEVER);
     }
 
     /**

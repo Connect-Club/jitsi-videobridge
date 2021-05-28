@@ -21,6 +21,7 @@ import org.jitsi.xmpp.extensions.colibri.*;
 import org.jitsi.xmpp.extensions.jingle.*;
 import org.jitsi.xmpp.extensions.jitsimeet.*;
 import org.jitsi_modified.impl.neomedia.rtp.*;
+import org.jxmpp.jid.Jid;
 
 import java.util.*;
 import java.util.stream.*;
@@ -489,7 +490,7 @@ public class MediaStreamTrackFactory
                     .filter(source -> source.getSSRC() == primarySsrc)
                     .findAny().orElse(null);
 
-            trackSsrcs.owner = getOwner(trackSource);
+            trackSsrcs.owner = getOwnerResource(trackSource);
         }
     }
 
@@ -505,7 +506,7 @@ public class MediaStreamTrackFactory
      * the owner.
      * @return the owner/endpoint ID as a {@link String}.
      */
-    public static String getOwner(SourcePacketExtension source)
+    public static String getOwnerResource(SourcePacketExtension source)
     {
         SSRCInfoPacketExtension ssrcInfoPacketExtension
             = source == null
@@ -516,6 +517,19 @@ public class MediaStreamTrackFactory
             return
                 ssrcInfoPacketExtension.getOwner()
                     .getResourceOrEmpty().toString();
+        }
+        return null;
+    }
+
+    public static Jid getOwner(SourcePacketExtension source)
+    {
+        SSRCInfoPacketExtension ssrcInfoPacketExtension
+                = source == null
+                ? null : source.getFirstChildOfType(
+                SSRCInfoPacketExtension.class);
+        if (ssrcInfoPacketExtension != null)
+        {
+            return ssrcInfoPacketExtension.getOwner();
         }
         return null;
     }

@@ -29,6 +29,7 @@ import org.jitsi.videobridge.octo.config.*;
 import org.jitsi_modified.impl.neomedia.rtp.*;
 import org.json.simple.*;
 
+import java.time.Clock;
 import java.util.*;
 
 /**
@@ -58,6 +59,14 @@ public class OctoTransceiver implements Stoppable, NodeStatsProducer
     private final OctoRtpReceiver octoReceiver;
 
     private final OctoRtpSender octoSender;
+
+    public PacketIOActivity getPacketIOActivity() {
+        return packetIOActivity;
+    }
+
+    private final PacketIOActivity packetIOActivity = new PacketIOActivity();
+
+    private final Clock clock = Clock.systemUTC();
 
     /**
      * Initializes a new {@link OctoTransceiver} instance.
@@ -147,6 +156,7 @@ public class OctoTransceiver implements Stoppable, NodeStatsProducer
 
     public void handleIncomingPacket(@NotNull OctoPacketInfo packetInfo)
     {
+        packetIOActivity.setLastRtpPacketReceivedInstant(clock.instant());
         octoReceiver.enqueuePacket(packetInfo);
     }
 
