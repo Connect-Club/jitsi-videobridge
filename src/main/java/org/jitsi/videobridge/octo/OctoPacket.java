@@ -45,7 +45,7 @@ public class OctoPacket
     /**
      * The fixed length of the Octo header.
      */
-    public static final int OCTO_HEADER_LENGTH = 8;
+    public static final int OCTO_HEADER_LENGTH = 12;
 
     /**
      * The integer which identifies the "audio" media type in Octo.
@@ -120,8 +120,9 @@ public class OctoPacket
     {
         assertMinLen(buf, off, len);
 
-        int cid = readUint24(buf, off + 1);
-        return Integer.toHexString(cid);
+        long cid = ((long)readUint24(buf, off + 1)) << 32;
+        cid += readUint32(buf, off + 4);
+        return Long.toString(cid, 16);
     }
 
     /**
@@ -174,8 +175,8 @@ public class OctoPacket
     {
         assertMinLen(buf, off, len);
 
-        long eid = readUint32(buf, off + 4);
-        return String.format("%08x", eid);
+        int eid = readInt(buf, off + 8);
+        return (eid < 0 ? "screen" : "") + Integer.toString(eid, 10);
     }
 
     /**
@@ -190,8 +191,9 @@ public class OctoPacket
     {
         assertMinLen(buf, off, len);
 
-        int cid = Integer.parseInt(conferenceId, 16);
-        writeUint24(buf, off + 1, cid);
+        long cid = Long.parseLong(conferenceId, 16);
+        writeUint24(buf, off + 1, (int) (cid >> 32));
+        writeInt(buf, off + 4, (int) cid);
     }
 
     /**
@@ -206,8 +208,8 @@ public class OctoPacket
     {
         assertMinLen(buf, off, len);
 
-        long eid = Long.parseLong(endpointId, 16);
-        writeInt(buf, off + 4, (int) eid);
+        int eid = Integer.parseInt(endpointId.startsWith("screen-") ? endpointId.substring("screen".length()) : endpointId, 10);
+        writeInt(buf, off + 8, eid);
     }
 
     /**
