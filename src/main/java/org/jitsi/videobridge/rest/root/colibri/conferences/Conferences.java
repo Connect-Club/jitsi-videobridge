@@ -276,4 +276,17 @@ public class Conferences extends ColibriResource
 
         return conferencesJSONArray.toJSONString();
     }
+
+    @DELETE
+    @Path("/{confId}/endpoint/{endpoint}")
+    public void deleteEndpoint(@PathParam("confId") String confId,@PathParam("endpoint") String endpointId) {
+        Conference conference = videobridgeProvider.get().getConference(confId, null);
+        if (conference == null) {
+            throw new NotFoundException();
+        }
+        AbstractEndpoint endpoint = conference.getEndpoint(endpointId);
+        if(endpoint != null) {
+            endpoint.expire();
+        }
+    }
 }
