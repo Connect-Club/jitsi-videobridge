@@ -67,6 +67,9 @@ class UdpTransport @JvmOverloads @Throws(SocketException::class, UnknownHostExce
                 "Send buffer size ${socket.sendBufferSize}${soSndBuf?.let { " (asked for $it)"} ?: ""}.")
     }
 
+    val localPort : Int
+        get() = socket.localPort
+
     private val stats = Stats()
 
     var incomingDataHandler: IncomingDataHandler? = null

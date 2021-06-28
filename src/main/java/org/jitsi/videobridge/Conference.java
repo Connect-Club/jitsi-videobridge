@@ -208,6 +208,8 @@ public class Conference
      */
     private ConfOctoTransport tentacle;
 
+    private ConfAudioMixerTransport audioMixer;
+
     /**
      * Initializes a new <tt>Conference</tt> instance which is to represent a
      * conference in the terms of Jitsi Videobridge which has a specific
@@ -551,6 +553,10 @@ public class Conference
             {
                 tentacle.expire();
                 tentacle = null;
+            }
+            if (audioMixer != null) {
+                audioMixer.expire();
+                audioMixer = null;
             }
 
             if (includeInStatistics)
@@ -1175,6 +1181,14 @@ public class Conference
         return shim;
     }
 
+    //todo: delete when a bug in the library (jitsi-media-transform) is fixed
+    private static PacketInfo clonePacketInfo(PacketInfo packetInfo) {
+        PacketInfo clonedPacketInfo = packetInfo.clone();
+        //PacketInfo.clone() ignores the field 'endpointId'
+        clonedPacketInfo.setEndpointId(packetInfo.getEndpointId());
+        return clonedPacketInfo;
+    }
+
     /**
      * Broadcasts the packet to all endpoints and tentacles that want it.
      *
@@ -1200,13 +1214,7 @@ public class Conference
             {
                 if (prevHandler != null)
                 {
-                    //todo: delete when a bug in the library (jitsi-media-transform) is fixed
-                    //<----------------------------------------------------------------------
-                    PacketInfo clonedPacketInfo = packetInfo.clone();
-                    //PacketInfo.clone() ignores the field 'endpointId'
-                    clonedPacketInfo.setEndpointId(packetInfo.getEndpointId());
-                    //---------------------------------------------------------------------->
-                    prevHandler.send(clonedPacketInfo);
+                    prevHandler.send(clonePacketInfo(packetInfo));
                 }
                 prevHandler = endpoint;
             }
@@ -1215,9 +1223,17 @@ public class Conference
         {
             if (prevHandler != null)
             {
-                prevHandler.send(packetInfo.clone());
+                prevHandler.send(clonePacketInfo(packetInfo));
             }
             prevHandler = tentacle;
+        }
+
+        if (audioMixer != null && audioMixer.wants(packetInfo)) {
+            if (prevHandler != null)
+            {
+                prevHandler.send(clonePacketInfo(packetInfo));
+            }
+            prevHandler = audioMixer;
         }
 
         if (prevHandler != null)
@@ -1255,6 +1271,17 @@ public class Conference
     public boolean isOctoEnabled()
     {
         return tentacle != null;
+    }
+
+    public ConfAudioMixerTransport getAudioMixer() {
+        if (audioMixer == null) {
+            try {
+                audioMixer = new ConfAudioMixerTransport(this);
+            } catch (Exception e) {
+                logger.error(e);
+            }
+        }
+        return audioMixer;
     }
 
     /**

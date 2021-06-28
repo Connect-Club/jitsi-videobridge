@@ -450,6 +450,8 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
      */
     public abstract void setFeature(EndpointDebugFeatures feature, boolean enabled);
 
+    public abstract void setSubscriptionType(EndpointSubscriptionType subscriptionType);
+
     /**
      * Whether the remote endpoint is currently sending (non-silence) audio.
      */

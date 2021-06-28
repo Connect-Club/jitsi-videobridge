@@ -124,6 +124,8 @@ public abstract class AbstractEndpointMessageTransport
                 case COLIBRI_CLASS_PINNED_UUID_ENDPOINTS_CHANGED:
                     onPinnedUUIDEndpointsChangedEvent(src, jsonObject);
                     break;
+                case COLIBRI_CLASS_SUBSCRIPTION_TYPE_CHANGED:
+                    onSubscriptionTypeChangedEvent(src, jsonObject);
                 case COLIBRI_CLASS_CLIENT_HELLO:
                     onClientHello(src, jsonObject);
                     break;
@@ -313,6 +315,15 @@ public abstract class AbstractEndpointMessageTransport
         onPinnedUUIDEndpointsChangedEvent(jsonObject, newPinnedUUIDEndpoints);
     }
 
+    protected void onSubscriptionTypeChangedEvent(
+            @SuppressWarnings("unused") Object src,
+            JSONObject jsonObject
+    ) {
+        Object o = jsonObject.get("value");
+
+        onSubscriptionTypeChangedEvent(jsonObject, EndpointSubscriptionType.valueOf(o.toString()));
+    }
+
     /**
      * Notifies this {@code Endpoint} that a {@code PinnedEndpointsChangedEvent}
      * has been received.
@@ -426,6 +437,11 @@ public abstract class AbstractEndpointMessageTransport
     protected abstract void onPinnedUUIDEndpointsChangedEvent(
             JSONObject jsonObject,
             Set<UUID> newPinnedUUIDEndpoints
+    );
+
+    protected abstract void onSubscriptionTypeChangedEvent(
+            JSONObject jsonObject,
+            EndpointSubscriptionType subscriptionType
     );
 
     /**

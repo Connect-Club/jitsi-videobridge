@@ -71,6 +71,19 @@ public class VideobridgeShim
         return false;
     }
 
+    private static boolean isMixerAudioChannel(ColibriConferenceIQ.Channel channel) {
+        if (channel instanceof ColibriConferenceIQ.OctoChannel)
+        {
+            return false;
+        }
+
+        if (channel != null) {
+            return channel.getRTPLevelRelayType() == RTPLevelRelayType.MIXER;
+        }
+
+        return false;
+    }
+
     /**
      * Gets the channel ID we will use for the Octo channel with a given media
      * type.
@@ -103,7 +116,7 @@ public class VideobridgeShim
         for (ColibriConferenceIQ.Channel channelIq : channelIqs)
         {
             // Octo channels are handled separately.
-            if (isOctoChannel(channelIq))
+            if (isOctoChannel(channelIq) || isMixerAudioChannel(channelIq))
             {
                 continue;
             }
@@ -287,6 +300,8 @@ public class VideobridgeShim
         ColibriConferenceIQ.Channel octoAudioChannel = null;
         ColibriConferenceIQ.Channel octoVideoChannel = null;
 
+        ColibriConferenceIQ.Channel mixerAudioChannel = null;
+
         for (ColibriConferenceIQ.Content contentIQ : conferenceIQ.getContents())
         {
              // The content element springs into existence whenever it gets
@@ -341,6 +356,10 @@ public class VideobridgeShim
                 responseContentIQ.addChannel(octoChannelResponse);
             }
 
+            if (MediaType.AUDIO.equals(contentType)) {
+                mixerAudioChannel = findMixerAudioChannel(contentIQ);
+            }
+
             try
             {
                 processSctpConnections(contentIQ.getSctpConnections(), contentShim)
@@ -353,6 +372,10 @@ public class VideobridgeShim
                 return IQUtils.createError(
                         conferenceIQ, e.condition, e.errorMessage);
             }
+        }
+
+        if (mixerAudioChannel != null) {
+            conferenceShim.processMixerAudioChannel(mixerAudioChannel);
         }
 
         if (octoAudioChannel != null && octoVideoChannel != null)
@@ -419,6 +442,14 @@ public class VideobridgeShim
                 content.getChannels().stream()
                         .filter(c -> isOctoChannel(c))
                         .findAny().orElse(null);
+    }
+
+    private static ColibriConferenceIQ.Channel findMixerAudioChannel(
+            ColibriConferenceIQ.Content content
+    ) {
+        return content.getChannels().stream()
+                .filter(VideobridgeShim::isMixerAudioChannel)
+                .findAny().orElse(null);
     }
 
     static class IqProcessingException extends Exception

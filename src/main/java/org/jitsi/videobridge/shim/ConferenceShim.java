@@ -31,6 +31,8 @@ import org.json.simple.JSONObject;
 import java.util.*;
 import java.util.stream.*;
 
+import static org.jitsi.videobridge.ConfAudioMixerTransport.AUDIO_MIXER_EP_ID;
+
 /**
  * Handles Colibri-related logic for a {@link Conference}, e.g.
  * creates/expires contents, describes the conference in XML.
@@ -128,10 +130,9 @@ public class ConferenceShim
      */
     void describeEndpoints(ColibriConferenceIQ iq)
     {
-        conference.getEndpoints().forEach(
-                en -> iq.addEndpoint(
-                        new ColibriEndpointIQ(
-                                en.getID(), en.getUuid(), en.getStatsId(), en.getDisplayName())));
+        conference.getEndpoints().stream()
+                .filter(x -> !AUDIO_MIXER_EP_ID.equals(x.getID()))
+                .forEach(en -> iq.addEndpoint(new ColibriEndpointIQ(en.getID(), en.getUuid(), en.getStatsId(), en.getDisplayName())));
     }
 
     /**
@@ -263,6 +264,27 @@ public class ConferenceShim
                 audioChannel.getSources(),
                 videoChannel.getSources(),
                 videoChannel.getSourceGroups());
+    }
+
+    public void processMixerAudioChannel(@NotNull ColibriConferenceIQ.Channel mixerAudioChannel) {
+        ConfAudioMixerTransport audioMixer = conference.getAudioMixer();
+
+        int expire = mixerAudioChannel.getExpire();
+        if (expire == 0) {
+            audioMixer.expire();
+        }
+        mixerAudioChannel.getPayloadTypes().forEach(ext -> {
+            PayloadType pt = PayloadTypeUtil.create(ext, MediaType.AUDIO);
+            if (pt == null)
+            {
+                logger.warn("Unrecognized payload type " + ext.toXML());
+            }
+            else
+            {
+                audioMixer.addPayloadType(pt);
+            }
+        });
+
     }
 
     /**

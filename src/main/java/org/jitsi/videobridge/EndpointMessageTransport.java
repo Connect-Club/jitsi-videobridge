@@ -198,6 +198,11 @@ class EndpointMessageTransport
         onPinnedEndpointsChangedEvent(jsonObject, newPinnedEndpoints);
     }
 
+    @Override
+    protected void onSubscriptionTypeChangedEvent(JSONObject jsonObject, EndpointSubscriptionType subscriptionType) {
+        endpoint.setSubscriptionType(subscriptionType);
+    }
+
     /**
      * {@inheritDoc}
      */

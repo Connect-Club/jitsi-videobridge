@@ -30,6 +30,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static org.jitsi.videobridge.ConfAudioMixerTransport.AUDIO_MIXER_EP_ID;
 import static org.jitsi.videobridge.EndpointConnectionStatusConfig.Config;
 import static org.jitsi.videobridge.EndpointMessageBuilder.createEndpointConnectivityStatusChangeEvent;
 
@@ -275,6 +276,9 @@ public class EndpointConnectionStatus
     private void sendEndpointConnectionStatus(
         AbstractEndpoint subjectEndpoint, boolean isConnected, Endpoint msgReceiver)
     {
+        if (AUDIO_MIXER_EP_ID.equals(subjectEndpoint.getID())) {
+            return;
+        }
         Conference conference = subjectEndpoint.getConference();
         if (conference != null)
         {

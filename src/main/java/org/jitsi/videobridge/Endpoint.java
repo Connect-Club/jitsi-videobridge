@@ -67,6 +67,7 @@ import java.util.function.Function;
 import java.util.function.*;
 import java.util.stream.*;
 
+import static org.jitsi.videobridge.ConfAudioMixerTransport.AUDIO_MIXER_EP_ID;
 import static org.jitsi.videobridge.EndpointMessageBuilder.*;
 
 /**
@@ -216,6 +217,8 @@ public class Endpoint
      * allows sending.
      */
     private volatile boolean acceptVideo = false;
+
+    private volatile EndpointSubscriptionType subscriptionType = EndpointSubscriptionType.NORMAL;
 
     /**
      * The clock used by this endpoint
@@ -555,6 +558,8 @@ public class Endpoint
         bitrateController.setMaxRxFrameHeightPx(maxReceiveFrameHeightPx);
     }
 
+    private Long localAudioSsrc;
+
     /**
      * Sets the local SSRC for this endpoint.
      * @param mediaType
@@ -562,6 +567,9 @@ public class Endpoint
      */
     public void setLocalSsrc(MediaType mediaType, long ssrc)
     {
+        if (mediaType == MediaType.AUDIO) {
+            localAudioSsrc = ssrc;
+        }
         transceiver.setLocalSsrc(mediaType, ssrc);
     }
 
@@ -597,12 +605,18 @@ public class Endpoint
             if (packet instanceof VideoRtpPacket)
             {
                 return acceptVideo
+                        && subscriptionType == EndpointSubscriptionType.NORMAL
                         && bitrateController.accept(packetInfo);
             }
             if (packet instanceof AudioRtpPacket)
             {
-                return acceptAudio
-                        && bitrateController.accept(packetInfo);
+                if (acceptAudio) {
+                    return subscriptionType == EndpointSubscriptionType.MIXED_AUDIO
+                            ? AUDIO_MIXER_EP_ID.equals(packetInfo.getEndpointId())
+                            : bitrateController.accept(packetInfo);
+                } else {
+                    return false;
+                }
             }
         }
         else if (packet instanceof RtcpPacket)
@@ -654,6 +668,8 @@ public class Endpoint
                                     + packet);
                     return;
                 }
+            } else if(AUDIO_MIXER_EP_ID.equals(packetInfo.getEndpointId())) {
+                ((AudioRtpPacket) packet).setSsrc(localAudioSsrc);
             }
 
             RtpPacket rtpPacket = (RtpPacket) packet;
@@ -1645,6 +1661,11 @@ public class Endpoint
                 transceiver.setFeature(Features.TRANSCEIVER_PCAP_DUMP, enabled);
                 break;
         }
+    }
+
+    @Override
+    public void setSubscriptionType(EndpointSubscriptionType subscriptionType) {
+        this.subscriptionType = subscriptionType;
     }
 
     @Override

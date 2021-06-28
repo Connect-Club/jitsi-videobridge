@@ -100,6 +100,11 @@ class OctoEndpointMessageTransport
         onPinnedEndpointsChangedEvent(jsonObject, newPinnedEndpoints);
     }
 
+    @Override
+    protected void onSubscriptionTypeChangedEvent(JSONObject jsonObject, EndpointSubscriptionType subscriptionType) {
+        logUnexpectedMessage(jsonObject.toJSONString());
+    }
+
     /**
      * {@inheritDoc}
      */

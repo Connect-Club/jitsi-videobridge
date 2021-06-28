@@ -24,6 +24,7 @@ import org.jitsi.utils.MediaType
 import org.jitsi.utils.logging2.Logger
 import org.jitsi.videobridge.AbstractEndpoint
 import org.jitsi.videobridge.Conference
+import org.jitsi.videobridge.EndpointSubscriptionType
 import org.jitsi.videobridge.rest.root.colibri.debug.EndpointDebugFeatures
 import org.jitsi_modified.impl.neomedia.rtp.MediaStreamTrackDesc
 import java.time.Instant
@@ -84,6 +85,10 @@ class OctoEndpoint(
     }
 
     override fun setFeature(feature: EndpointDebugFeatures?, enabled: Boolean) {
+        // NO-OP
+    }
+
+    override fun setSubscriptionType(subscriptionType: EndpointSubscriptionType?) {
         // NO-OP
     }
 
