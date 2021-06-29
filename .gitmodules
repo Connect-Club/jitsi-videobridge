@@ -1,0 +1,4 @@
+[submodule "rtp-audio-mixer"]
+	path = rtp-audio-mixer
+	url = https://gitlab.com/connect.club/jitsi/rtp-audio-mixer
+	branch = main
