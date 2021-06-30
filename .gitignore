@@ -13,3 +13,5 @@
 *.iml
 .mvn/
 .kotlintest
+packer/packer
+packer/account-*.json

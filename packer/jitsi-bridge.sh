@@ -42,7 +42,8 @@ echo "net.core.netdev_max_backlog=100000" | sudo tee -a /etc/sysctl.conf
 echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
 chmod 0600 ~/.ssh/deploy_key
 eval $(ssh-agent )
-ssh-add .ssh/deploy_key
+ssh-add ~/.ssh/deploy_key
+ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
 cd
 git clone git@gitlab.com:connect.club/jitsi/jitsi-videobridge.git
 cd jitsi-videobridge/
@@ -68,11 +69,11 @@ sudo apt-get purge git -y
 ## install
 sudo mkdir -p /var/log/jvb
 sudo chmod a+w /var/log/jvb
-sudo install -m 0644 /tmp/videobridge.service /lib/systemd/system /lib/systemd/system/videobridge.service
+sudo install -m 0644 /tmp/videobridge.service /lib/systemd/system/videobridge.service
 sudo ln -s /lib/systemd/system/videobridge.service /etc/systemd/system/multi-user.target.wants/
 sudo systemctl enable videobridge.service
 
-sudo install -m 0644 /tmp/rtp-audio-mixer.service /lib/systemd/rtp-audio-mixer.service
+sudo install -m 0644 /tmp/rtp-audio-mixer.service /lib/systemd/system/rtp-audio-mixer.service
 sudo ln -s /lib/systemd/system/rtp-audio-mixer.service /etc/systemd/system/multi-user.target.wants/
 sudo systemctl enable rtp-audio-mixer.service
 
