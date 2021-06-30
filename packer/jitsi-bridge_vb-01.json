@@ -1,6 +1,6 @@
 {
   "variables": {
-    "git_url": "giturl",
+    "deploy_key": "deploykey",
     "git_sha": "master"
   },
   "builders": [
@@ -40,12 +40,17 @@
       "destination": "/tmp/node_exporter.service"
     },
     {
+      "type": "file",
+      "source": "rtp-audio-mixer.service",
+      "destination": "/tmp/rtp-audio-mixer.service"
+    },
+    {
       "type": "shell",
       "scripts": [
         "jitsi-bridge.sh"
       ],
       "environment_vars": [
-        "GIT_URL={{ user `git_url` }}",
+        "DEPLOY_KEY={{ user `deploy_key` }}",
         "GIT_SHA={{ user `git_sha` }}"
       ]
     }
