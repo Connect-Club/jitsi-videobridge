@@ -59,14 +59,19 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
 
     private final AtomicBoolean running = new AtomicBoolean(true);
 
-    private static int getAudioMixPipelineSrcPort(String id, int sinkPort) throws IOException {
+    private static HttpUrl.Builder getRtpMixerHttpUrlBuilder(String id) {
+        return new HttpUrl.Builder()
+                .scheme("http")
+                .host("127.0.0.1")
+                .port(8888)
+                .addQueryParameter("id", id);
+    }
+
+    private static int getAudioMixPipelineSrcPort(String id, int sinkPort, int seqNum) throws IOException {
         Request request = new Request.Builder()
-                .url(new HttpUrl.Builder()
-                        .scheme("http")
-                        .host("127.0.0.1")
-                        .port(8888)
-                        .addQueryParameter("id", id)
+                .url(getRtpMixerHttpUrlBuilder(id)
                         .addQueryParameter("sinkPort", Integer.toString(sinkPort))
+                        .addQueryParameter("seqNum", Integer.toString(seqNum))
                         .build()
                 )
                 .get().build();
@@ -81,17 +86,12 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
 
     private static void deleteAudioMixPipeline(String id, Callback callback) {
         Request request = new Request.Builder()
-                .url(new HttpUrl.Builder()
-                        .scheme("http")
-                        .host("127.0.0.1")
-                        .port(8888)
-                        .addQueryParameter("id", id)
-                        .build()
-                )
+                .url(getRtpMixerHttpUrlBuilder(id).build())
                 .delete().build();
         okHttpClient.newCall(request).enqueue(callback);
     }
 
+    private int seqNum = 0;
 
     private void updateMixerAddress() {
         if (!running.get()) {
@@ -99,7 +99,7 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
         }
 
         try {
-            int mixerPort = getAudioMixPipelineSrcPort(conference.getID(), udpTransport.getLocalPort());
+            int mixerPort = getAudioMixPipelineSrcPort(conference.getID(), udpTransport.getLocalPort(), seqNum);
             if (mixerAddress == null || mixerAddress.getPort() != mixerPort) {
                 mixerAddress = new InetSocketAddress("127.0.0.1", mixerPort);
             }
@@ -119,6 +119,10 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
 
         rtpReceiver = new OctoRtpReceiver(streamInformationStore, logger);
         rtpReceiver.setPacketHandler(packetInfo -> {
+            Packet packet = packetInfo.getPacket();
+            if (packet instanceof RtpPacket) {
+                seqNum = ((RtpPacket) packet).getSequenceNumber();
+            }
             packetInfo.setEndpointId(AUDIO_MIXER_EP_ID);
             conference.handleIncomingPacket(packetInfo);
         });
