@@ -21,12 +21,15 @@ import org.jitsi.eventadmin.EventHandler;
 import org.jitsi.eventadmin.EventUtil;
 import org.jitsi.utils.logging2.Logger;
 import org.jitsi.utils.logging2.LoggerImpl;
+import org.jitsi.videobridge.AbstractEndpoint;
 import org.jitsi.videobridge.Endpoint;
 import org.jitsi.videobridge.EventFactory;
 import org.jitsi.videobridge.websocket.ColibriWebSocket;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.ServiceRegistration;
+
+import java.util.Objects;
 
 import static org.jitsi.videobridge.stats.config.StatsManagerBundleActivatorConfig.Config;
 
@@ -228,17 +231,17 @@ public class StatsManagerBundleActivator
         if(statsMgr == null)
             return;
 
-        Endpoint endpoint = (Endpoint) event.getProperty(EventFactory.EVENT_SOURCE);
+        AbstractEndpoint endpoint = (AbstractEndpoint) event.getProperty(EventFactory.EVENT_SOURCE);
         String endpointId = endpoint.getID();
         String confId = endpoint.getConference().getID();
-        if(StringUtils.isBlank(confId) || StringUtils.isBlank(endpointId))
+        if(StringUtils.isBlank(confId) || StringUtils.isBlank(endpointId) || !(endpoint instanceof Endpoint))
             return;
         switch (event.getTopic()) {
             case EventFactory.ENDPOINT_CREATED_TOPIC:
                 statsMgr.addStatistics(new EndpointStatistics(confId, endpointId), Config.statsInterval().toMillis());
                 break;
             case EventFactory.ENDPOINT_EXPIRED_TOPIC:
-                statsMgr.removeStatisticsIf(EndpointStatistics.class, x -> x.confId.equals(confId) && x.endpointId.equals(endpointId));
+                statsMgr.removeStatisticsIf(EndpointStatistics.class, x -> Objects.equals(x.confId, confId) && Objects.equals(x.endpointId, endpointId));
                 break;
         }
     }

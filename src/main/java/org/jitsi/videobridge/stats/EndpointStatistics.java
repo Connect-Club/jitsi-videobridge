@@ -6,6 +6,7 @@ import org.jitsi.nlj.transform.node.incoming.IncomingStatisticsSnapshot;
 import org.jitsi.nlj.transform.node.outgoing.OutgoingSsrcStats;
 import org.jitsi.nlj.transform.node.outgoing.OutgoingStatisticsSnapshot;
 import org.jitsi.osgi.ServiceUtils2;
+import org.jitsi.videobridge.AbstractEndpoint;
 import org.jitsi.videobridge.Conference;
 import org.jitsi.videobridge.Endpoint;
 import org.jitsi.videobridge.Videobridge;
@@ -60,11 +61,11 @@ public class EndpointStatistics extends Statistics {
 
         if(conference == null) return;
 
-        Endpoint endpoint = conference.getLocalEndpoints().stream()
-                .filter(x -> Objects.equals(x.getID(), endpointId))
-                .findFirst().orElse(null);
+        AbstractEndpoint abstractEndpoint = conference.getEndpoint(endpointId);
 
-        if(endpoint == null) return;
+        if(!(abstractEndpoint instanceof Endpoint)) return;
+
+        Endpoint endpoint = (Endpoint) abstractEndpoint;
 
         TransceiverStats transceiverStats
                 = endpoint.getTransceiver().getTransceiverStats();
