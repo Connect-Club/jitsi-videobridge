@@ -73,7 +73,7 @@ public class DataChannel
         ByteBuffer msg = openMessage.getBuffer();
         if (dataChannelDataSender.send(msg, sid, DataChannelProtocolConstants.WEBRTC_DCEP_PPID) < 0)
         {
-            logger.error("Error sending data channel open message");
+            logger.warn("Error sending data channel open message");
         }
     }
 
