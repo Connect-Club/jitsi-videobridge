@@ -17,15 +17,6 @@
       "instance_name": "jitsi-vb-builder",
       "subnetwork": "videobridge-01-subnet",
       "image_name": "videobridge-{{ user `git_sha` }}"
-    },
-    {
-      "type": "lxc",
-      "name": "lxc-trusty",
-      "config_file": "/tmp/lxc/config",
-      "template_name": "ubuntu",
-      "template_environment_vars": [
-        "SUITE=bionic"
-      ]
     }
   ],
   "provisioners": [
