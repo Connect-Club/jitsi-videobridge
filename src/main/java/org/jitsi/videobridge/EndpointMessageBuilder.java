@@ -33,8 +33,8 @@ public class EndpointMessageBuilder
      * The {@link Videobridge#COLIBRI_CLASS} value indicating a dominant speaker
      * change event.
      */
-    public static final String COLIBRI_CLASS_DOMINANT_SPEAKER_CHANGE
-        = "DominantSpeakerEndpointChangeEvent";
+    public static final String COLIBRI_CLASS_ACTIVE_SPEAKERS_CHANGE
+        = "ActiveSpeakersChangeEvent";
 
     /**
      * Constant value defines the name of "colibriClass" for connectivity status
@@ -125,21 +125,20 @@ public class EndpointMessageBuilder
     public static final String COLIBRI_CLASS_SERVER_HELLO = "ServerHello";
 
     /**
-     * @param endpoint the ID of the dominant speaker endpoint in this
+     * @param activeEndpoints the IDs of the active speakers endpoints in this
      * multipoint conference.
      *
      * @return a new <tt>String</tt> which represents a message to be sent
-     * to an endpoint in order to notify it that the dominant speaker in its
-     * multipoint conference has changed to a specific endpoint.
+     * to an endpoint in order to notify it that the active speakers in its
+     * multipoint conference has changed.
      */
-    public static String createDominantSpeakerEndpointChangeEvent(
-        String endpoint)
+    public static String createActiveSpeakersChangeEvent(
+        List<String> activeEndpoints)
     {
-        return
-            "{\"colibriClass\":\""
-                + COLIBRI_CLASS_DOMINANT_SPEAKER_CHANGE + "\","
-                + "\"dominantSpeakerEndpoint\":\""
-                + JSONValue.escape(endpoint) + "\"}";
+        return JSONObject.toJSONString(ImmutableMap.of(
+                "colibriClass", COLIBRI_CLASS_ACTIVE_SPEAKERS_CHANGE,
+                "activeSpeakers", activeEndpoints
+        ));
     }
 
     /**

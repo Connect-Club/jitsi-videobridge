@@ -113,15 +113,15 @@ public class ConferenceSpeechActivity
      * {@link #dominantSpeakerIdentification} about changes in the
      * active/dominant speaker in this multipoint conference.
      */
-    private final ActiveSpeakerChangedListener activeSpeakerChangedListener
-        = ConferenceSpeechActivity.this::activeSpeakerChanged;
+    private final ActiveSpeakersChangedListener activeSpeakersChangedListener
+        = ConferenceSpeechActivity.this::activeSpeakersChanged;
 
     /**
      * The <tt>DominantSpeakerIdentification</tt> instance which
      * detects/identifies the active/dominant speaker in {@link #conference}.
      */
-    private DominantSpeakerIdentification dominantSpeakerIdentification
-            = new DominantSpeakerIdentification();
+    private DominantSpeakersIdentification dominantSpeakerIdentification
+            = new DominantSpeakersIdentification();
 
     /**
      * The <tt>Conference</tt> for which this instance represents the speech
@@ -158,7 +158,7 @@ public class ConferenceSpeechActivity
         logger = conference.getLogger().createChildLogger(ConferenceSpeechActivity.class.getName());
 
         dominantSpeakerIdentification
-                .addActiveSpeakerChangedListener(activeSpeakerChangedListener);
+                .addActiveSpeakersChangedListener(activeSpeakersChangedListener);
     }
 
     /**
@@ -166,10 +166,10 @@ public class ConferenceSpeechActivity
      * changed to one identified by a specific synchronization source
      * identifier/SSRC.
      * 
-     * @param ssrc the synchronization source identifier/SSRC of the new
-     * active/dominant speaker
+     * @param ssrcs the synchronization source identifier/SSRC of the new
+     * active speakers
      */
-    private void activeSpeakerChanged(long ssrc)
+    private void activeSpeakersChanged(Set<Long> ssrcs)
     {
         Conference conference = this.conference;
 
@@ -178,40 +178,32 @@ public class ConferenceSpeechActivity
             if (logger.isTraceEnabled())
             {
                 logger.trace(
-                        "The dominant speaker in conference "
-                            + conference.getID() + " is now the SSRC " + ssrc
+                        "The active speakers in conference "
+                            + conference.getID() + " is now the SSRCS " + ssrcs
                             + ".");
             }
 
-            AbstractEndpoint endpoint
-                = conference.findEndpointByReceiveSSRC(ssrc);
+            List<AbstractEndpoint> activeEndpoints = new ArrayList<>(ssrcs.size());
 
-            if (endpoint == null)
-            {
-                logger.warn("Unable to find endpoint corresponding to "
-                    + "active speaker SSRC " + ssrc);
-                return;
+            for(Long ssrc : ssrcs) {
+                AbstractEndpoint endpoint
+                        = conference.findEndpointByReceiveSSRC(ssrc);
+
+                if (endpoint == null)
+                {
+                    logger.warn("Unable to find endpoint corresponding to "
+                            + "active speaker SSRC " + ssrc);
+                    continue;
+                }
+                activeEndpoints.add(endpoint);
             }
 
             synchronized (syncRoot)
             {
-                // Move this endpoint to the top of our sorted list
-                if (!endpoints.remove(endpoint))
-                {
-                    logger.warn("Got active speaker notification for an unknown"
-                            + " endpoint (ssrc: " + ssrc + ", epId "
-                            + endpoint.getID() + ")! Ignoring");
-                    return;
-                }
-                endpoints.add(0, endpoint);
+                endpoints.clear();
+                endpoints.addAll(activeEndpoints);
 
-                TaskPools.IO_POOL.submit(() ->
-                {
-                    if (conference != null)
-                    {
-                        conference.dominantSpeakerChanged();
-                    }
-                });
+                TaskPools.IO_POOL.submit(conference::activeSpeakersChanged);
             }
         }
     }
@@ -226,7 +218,7 @@ public class ConferenceSpeechActivity
      */
     public JSONObject doGetDominantSpeakerIdentificationJSON()
     {
-        DominantSpeakerIdentification dominantSpeakerIdentification
+        DominantSpeakersIdentification dominantSpeakerIdentification
             = this.dominantSpeakerIdentification;
         JSONObject jsonObject;
 
@@ -236,6 +228,7 @@ public class ConferenceSpeechActivity
             // of this writing, we know how to represent
             // DominantSpeakerIdentification only.
             jsonObject = null;
+            logger.warn("jsonObject = null");
         }
         else
         {
@@ -304,45 +297,11 @@ public class ConferenceSpeechActivity
             if (dominantSpeakerIdentification != null)
             {
                 dominantSpeakerIdentification
-                        .removeActiveSpeakerChangedListener(
-                                activeSpeakerChangedListener);
+                        .removeActiveSpeakersChangedListener(
+                                activeSpeakersChangedListener);
             }
             this.conference = null;
             this.dominantSpeakerIdentification = null;
-        }
-    }
-
-    /**
-     * Gets the <tt>Endpoint</tt> which is the dominant speaker in the
-     * multipoint conference represented by this instance.
-     *
-     * @return the <tt>Endpoint</tt> which is the dominant speaker in the
-     * multipoint conference represented by this instance or <tt>null</tt>
-     */
-    public AbstractEndpoint getDominantEndpoint()
-    {
-        synchronized (syncRoot)
-        {
-            return endpoints.isEmpty() ? null : endpoints.get(0);
-        }
-    }
-
-    /**
-     * Gets the ordered list of <tt>Endpoint</tt>s participating in the
-     * multipoint conference represented by this instance with the dominant
-     * (speaker) <tt>Endpoint</tt> at the beginning of the list i.e. the
-     * dominant speaker history.
-     *
-     * @return the ordered list of <tt>Endpoint</tt>s participating in the
-     * multipoint conference represented by this instance with the dominant
-     * (speaker) <tt>Endpoint</tt> at the beginning of the list
-     */
-    public List<AbstractEndpoint> getEndpoints()
-    {
-        synchronized (syncRoot)
-        {
-            //TODO(brian): make a copy?
-            return endpoints;
         }
     }
 
@@ -371,7 +330,7 @@ public class ConferenceSpeechActivity
      */
     public void levelChanged(long ssrc, int level)
     {
-        DominantSpeakerIdentification dsi = this.dominantSpeakerIdentification;
+        DominantSpeakersIdentification dsi = this.dominantSpeakerIdentification;
         if (dsi != null)
         {
             dominantSpeakerIdentification.levelChanged(ssrc, level);
@@ -427,7 +386,7 @@ public class ConferenceSpeechActivity
                 }
                 if (finalDominantSpeakerChanged)
                 {
-                    conference.dominantSpeakerChanged();
+                    conference.activeSpeakersChanged();
                 }
                 // Dominant speaker changed implies that the list changed.
                 if (finalEndpointsChanged && !finalDominantSpeakerChanged)
@@ -448,14 +407,14 @@ public class ConferenceSpeechActivity
     {
         JSONObject debugState = new JSONObject();
 
-        AbstractEndpoint dominantEndpoint = getDominantEndpoint();
-        debugState.put(
-                "dominantEndpoint",
-                dominantEndpoint == null ? null : dominantEndpoint.getID());
-        DominantSpeakerIdentification dsi = this.dominantSpeakerIdentification;
-        debugState.put(
-                "dominantSpeakerIdentification",
-                dsi == null ? null : dsi.doGetJSON());
+//        AbstractEndpoint dominantEndpoint = getDominantEndpoint();
+//        debugState.put(
+//                "dominantEndpoint",
+//                dominantEndpoint == null ? null : dominantEndpoint.getID());
+//        DominantSpeakersIdentification dsi = this.dominantSpeakerIdentification;
+//        debugState.put(
+//                "dominantSpeakerIdentification",
+//                dsi == null ? null : dsi.doGetJSON());
 
         return debugState;
     }

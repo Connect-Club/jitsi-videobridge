@@ -46,7 +46,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 import java.util.logging.*;
-import java.util.stream.Collectors;
 
 import static org.jitsi.utils.collections.JMap.entry;
 import static org.jitsi.videobridge.EndpointMessageBuilder.*;
@@ -439,44 +438,31 @@ public class Conference
      * speaker switch event in this multipoint conference and there is now a new
      * dominant speaker.
      */
-    void dominantSpeakerChanged()
+    void activeSpeakersChanged()
     {
-        AbstractEndpoint dominantSpeaker = speechActivity.getDominantEndpoint();
-
-        if (logger.isInfoEnabled())
-        {
-            String id
-                = dominantSpeaker == null ? "null" : dominantSpeaker.getID();
-            logger.info("ds_change ds_id=" + id);
-            getVideobridge().getStatistics().totalDominantSpeakerChanges.increment();
-        }
-
         speechActivityEndpointsChanged(speechActivity.getEndpointIds());
 
-        if (dominantSpeaker != null)
-        {
-            broadcastMessage(
-                    createDominantSpeakerEndpointChangeEvent(
-                        dominantSpeaker.getID()));
-            if (getEndpointCount() > 2)
-            {
-                double senderRtt = getRtt(dominantSpeaker);
-                double maxReceiveRtt = getMaxReceiverRtt(dominantSpeaker.getID());
-                // We add an additional 10ms delay to reduce the risk of the keyframe arriving
-                // too early
-                double keyframeDelay = maxReceiveRtt - senderRtt + 10;
-                if (logger.isDebugEnabled())
-                {
-                    logger.debug("Scheduling keyframe request from " + dominantSpeaker.getID() + " after a delay" +
-                            " of " + keyframeDelay + "ms");
-                }
-                TaskPools.SCHEDULED_POOL.schedule(
-                        (Runnable)dominantSpeaker::requestKeyframe,
-                        (long)keyframeDelay,
-                        TimeUnit.MILLISECONDS
-                );
-            }
-        }
+        broadcastMessage(
+                createActiveSpeakersChangeEvent(
+                        speechActivity.getEndpointIds()));
+//        if (getEndpointCount() > 2)
+//        {
+//            double senderRtt = getRtt(dominantSpeaker);
+//            double maxReceiveRtt = getMaxReceiverRtt(dominantSpeaker.getID());
+//            // We add an additional 10ms delay to reduce the risk of the keyframe arriving
+//            // too early
+//            double keyframeDelay = maxReceiveRtt - senderRtt + 10;
+//            if (logger.isDebugEnabled())
+//            {
+//                logger.debug("Scheduling keyframe request from " + dominantSpeaker.getID() + " after a delay" +
+//                        " of " + keyframeDelay + "ms");
+//            }
+//            TaskPools.SCHEDULED_POOL.schedule(
+//                    (Runnable)dominantSpeaker::requestKeyframe,
+//                    (long)keyframeDelay,
+//                    TimeUnit.MILLISECONDS
+//            );
+//        }
     }
 
     private double getRtt(AbstractEndpoint endpoint)
@@ -713,14 +699,6 @@ public class Conference
         }
 
         return endpoint;
-    }
-
-    /**
-     * An endpoint was added or removed.
-     */
-    private void endpointsChanged()
-    {
-        speechActivity.endpointsChanged();
     }
 
     /**
@@ -998,7 +976,6 @@ public class Conference
                 eventAdmin.sendEvent(
                     EventFactory.endpointExpired(removedEndpoint));
             }
-            endpointsChanged();
         }
     }
 
@@ -1018,8 +995,6 @@ public class Conference
         final AbstractEndpoint replacedEndpoint;
         replacedEndpoint = endpoints.put(endpoint.getID(), endpoint);
         updateEndpointsCache();
-
-        endpointsChanged();
 
         if (replacedEndpoint != null)
         {
@@ -1054,24 +1029,18 @@ public class Conference
 
         if (!isExpired())
         {
-            AbstractEndpoint dominantSpeaker
-                    = speechActivity.getDominantEndpoint();
-
-            if (dominantSpeaker != null)
+            try
             {
-                try
-                {
-                    endpoint.sendMessage(
-                            createDominantSpeakerEndpointChangeEvent(
-                                dominantSpeaker.getID()));
-                }
-                catch (IOException e)
-                {
-                    logger.error(
-                            "Failed to send dominant speaker update"
+                endpoint.sendMessage(
+                        createActiveSpeakersChangeEvent(
+                                speechActivity.getEndpointIds()));
+            }
+            catch (IOException e)
+            {
+                logger.error(
+                        "Failed to send dominant speaker update"
                                 + " on data channel to " + endpoint.getID(),
-                            e);
-                }
+                        e);
             }
         }
     }

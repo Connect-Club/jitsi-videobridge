@@ -160,11 +160,6 @@ public class BitrateController
     private long lastBwe = -1;
 
     /**
-     * The list of endpoints ids ordered by activity.
-     */
-    private List<String> sortedEndpointIds;
-
-    /**
      * The main result of the bitrate allocation algorithm computation.
      */
     private List<AdaptiveTrackProjection> adaptiveTrackProjections
@@ -558,7 +553,7 @@ public class BitrateController
 
     /**
      * Called when the ordering of endpoints has changed in some way. This could
-     * be due to an endpoint joining or leaving, a new dominant speaker, or a
+     * be due to an endpoint joining or leaving, or a
      * change in which endpoints are selected.
      *
      * @param conferenceEndpoints the endpoints of the conference sorted in
@@ -571,7 +566,6 @@ public class BitrateController
     {
         logger.debug(() -> " endpoint ordering has changed, updating");
 
-        sortedEndpointIds = conferenceEndpoints;
         update();
     }
 
@@ -598,28 +592,9 @@ public class BitrateController
 
         long bweBps = getAvailableBandwidth(nowMs);
 
-        // Create a copy as we may modify the list in the prioritize method.
-        List<String> sortedEndpointIdsCopy = sortedEndpointIds;
-        if (sortedEndpointIdsCopy == null || sortedEndpointIdsCopy.isEmpty())
-        {
-            return;
-        }
-
-        List<AbstractEndpoint> sortedEndpoints
-            = new ArrayList<>(sortedEndpointIdsCopy.size());
-        for (String endpointId : sortedEndpointIdsCopy)
-        {
-            AbstractEndpoint abstractEndpoint
-                 = destinationEndpoint.getConference().getEndpoint(endpointId);
-            if (abstractEndpoint != null)
-            {
-                sortedEndpoints.add(abstractEndpoint);
-            }
-        }
-
         // Compute the bitrate allocation.
         TrackBitrateAllocation[]
-            trackBitrateAllocations = allocate(bweBps, sortedEndpoints);
+            trackBitrateAllocations = allocate(bweBps, destinationEndpoint.getConference().getEndpoints());
 
         // Update the the controllers based on the allocation and send a
         // notification to the client the set of forwarded endpoints has
