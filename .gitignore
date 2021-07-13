@@ -6,7 +6,6 @@
 /openfire/target/
 *.class
 /.classpath
-*.jar
 /.project
 *.swp
 **/.idea/
