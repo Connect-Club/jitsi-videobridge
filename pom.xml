@@ -198,8 +198,6 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>jitsi-utils</artifactId>
       <version>1.0-47-SNAPSHOT</version>
-      <scope>system</scope>
-      <systemPath>${project.basedir}/local-maven-repo/jitsi-utils-1.0-SNAPSHOT.jar</systemPath>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
