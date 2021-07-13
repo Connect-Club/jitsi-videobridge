@@ -1,7 +1,8 @@
 {
   "variables": {
     "deploy_key": "deploykey",
-    "git_sha": "master"
+    "git_sha": "master",
+    "maven_token": "-"
   },
   "builders": [
     {
@@ -16,6 +17,15 @@
       "instance_name": "jitsi-vb-builder",
       "subnetwork": "videobridge-01-subnet",
       "image_name": "videobridge-{{ user `git_sha` }}"
+    },
+    {
+      "type": "lxc",
+      "name": "lxc-trusty",
+      "config_file": "/tmp/lxc/config",
+      "template_name": "ubuntu",
+      "template_environment_vars": [
+        "SUITE=bionic"
+      ]
     }
   ],
   "provisioners": [
@@ -45,13 +55,19 @@
       "destination": "/tmp/rtp-audio-mixer.service"
     },
     {
+      "type": "file",
+      "source": "settings.xml",
+      "destination": "/tmp/settings.xml"
+    },
+    {
       "type": "shell",
       "scripts": [
         "jitsi-bridge.sh"
       ],
       "environment_vars": [
         "DEPLOY_KEY={{ user `deploy_key` }}",
-        "GIT_SHA={{ user `git_sha` }}"
+        "GIT_SHA={{ user `git_sha` }}",
+        "MAVEN_TOKEN={{ user `maven_token` }}"
       ]
     }
   ]

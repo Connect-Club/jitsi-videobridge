@@ -49,6 +49,8 @@ git clone git@gitlab.com:connect.club/jitsi/jitsi-videobridge.git
 cd jitsi-videobridge/
 git checkout $GIT_SHA
 git submodule update --init --recursive
+mkdir -p ~/.m2
+cp /tmp/settings.xml ~/.m2/settings.xml
 ## build maven
 curl https://apache-mirror.rbc.ru/pub/apache/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.zip -o maven.zip
 unzip maven.zip
