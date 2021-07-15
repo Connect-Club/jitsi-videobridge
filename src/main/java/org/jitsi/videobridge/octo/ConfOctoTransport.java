@@ -277,6 +277,10 @@ public class ConfOctoTransport extends PropertyChangeNotifier
         }
         stats.packetReceived(packetInfo.getPacket().length, clock.instant());
         IncomingOctoEpPacketHandler handler = incomingPacketHandlers.get(packetInfo.getEndpointId());
+        //todo: write special handler for unknown endpoints. It have to handle only FIR/PIL packets
+        if(handler == null && !JVB_EP_ID.equals(packetInfo.getEndpointId())) {
+            handler = incomingPacketHandlers.get(JVB_EP_ID);
+        }
         if (handler != null)
         {
             handler.handleIncomingPacket(packetInfo);
