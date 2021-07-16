@@ -143,6 +143,7 @@ public final class JSONDeserializer
             Object relays = channel.get(JSONSerializer.RELAYS);
             Object sources = channel.get(JSONSerializer.SOURCES);
             Object sourceGroups = channel.get(JSONSerializer.SOURCE_GROUPS);
+            Object headerExtensions = channel.get(JSONSerializer.RTP_HEADER_EXTS);
 
             deserializeChannelCommon(channel, channelIQ);
 
@@ -164,6 +165,13 @@ public final class JSONDeserializer
             if (sourceGroups != null)
             {
                 deserializeSourceGroups((JSONArray) sourceGroups, channelIQ);
+            }
+            // header extensions
+            if (headerExtensions != null)
+            {
+                deserializeHeaderExtensions(
+                        (JSONArray) headerExtensions,
+                        channelIQ);
             }
         } else {
             channelIQ = new ColibriConferenceIQ.Channel();

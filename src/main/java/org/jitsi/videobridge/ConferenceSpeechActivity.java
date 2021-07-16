@@ -121,7 +121,7 @@ public class ConferenceSpeechActivity
      * detects/identifies the active/dominant speaker in {@link #conference}.
      */
     private DominantSpeakersIdentification dominantSpeakerIdentification
-            = new DominantSpeakersIdentification();
+            = new DominantSpeakersIdentification(150, 3);
 
     /**
      * The <tt>Conference</tt> for which this instance represents the speech
