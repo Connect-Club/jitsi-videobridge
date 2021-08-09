@@ -682,6 +682,14 @@ public class Conference
                 + id + "already created");
         }
 
+        if (id.startsWith("screen-")) {
+            String ownerId = id.substring("screen-".length());
+            AbstractEndpoint ownerEndpoint =  getEndpoint(ownerId);
+            if (ownerEndpoint == null || ownerEndpoint.isExpired()) {
+                throw new IllegalArgumentException("Screen owner with ID = " + ownerId + " not found");
+            }
+        }
+
         final Endpoint endpoint = new Endpoint(
             id, this, logger, iceControlling, shadow, infoForNotification);
         // The propertyChangeListener will weakly reference this

@@ -807,6 +807,13 @@ public class Endpoint
                     maxExpireTimeFromChannelShims);
             return true;
         }
+
+        if (getID().startsWith("screen-")) {
+            String ownerId = getID().substring("screen-".length());
+            AbstractEndpoint ownerEndpoint = getConference().getEndpoint(ownerId);
+            return ownerEndpoint == null || ownerEndpoint.isExpired() || ownerEndpoint.shouldExpire();
+        }
+
         return false;
     }
 
