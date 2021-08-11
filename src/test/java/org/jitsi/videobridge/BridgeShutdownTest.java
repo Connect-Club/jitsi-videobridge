@@ -26,6 +26,7 @@ import org.jxmpp.jid.impl.*;
 import org.xmlpull.v1.*;
 
 import java.io.*;
+import java.util.Collections;
 
 import static org.junit.Assert.*;
 
@@ -92,7 +93,7 @@ public class BridgeShutdownTest
                 .createConferenceIq(focusJid);
         IQ respIq;
 
-        respIq = bridge.handleColibriConferenceIQ(confIq);
+        respIq = bridge.handleColibriConferenceIQ(confIq, Collections.emptySet());
 
         assertTrue(respIq instanceof ColibriConferenceIQ);
 
@@ -113,7 +114,7 @@ public class BridgeShutdownTest
         // Now send get conference state request
         respConfIq.setFrom(focusJid);
         respConfIq.setType(IQ.Type.get);
-        respIq = bridge.handleColibriConferenceIQ(respConfIq);
+        respIq = bridge.handleColibriConferenceIQ(respConfIq, Collections.emptySet());
 
         assertTrue(respIq instanceof ColibriConferenceIQ);
 
@@ -125,7 +126,7 @@ public class BridgeShutdownTest
         ColibriConferenceIQ createNewConfIq
                 = ColibriUtilities.createConferenceIq(focusJid);
 
-        respIq = bridge.handleColibriConferenceIQ(createNewConfIq);
+        respIq = bridge.handleColibriConferenceIQ(createNewConfIq, Collections.emptySet());
 
         validateErrorResponse(respIq);
 
@@ -149,7 +150,7 @@ public class BridgeShutdownTest
         respConfIq.setFrom(focusJid);
         respConfIq.setType(IQ.Type.set);
 
-        bridge.handleColibriConferenceIQ(respConfIq);
+        bridge.handleColibriConferenceIQ(respConfIq, Collections.emptySet());
 
         // There could be some channels due to health checks running
         // periodically, but they should be expired rather quickly.

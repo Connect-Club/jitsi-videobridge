@@ -16,6 +16,7 @@
 
 package org.jitsi.videobridge.rest.root.colibri.conferences;
 
+import org.apache.commons.lang3.StringUtils;
 import org.jitsi.videobridge.*;
 import org.jitsi.videobridge.rest.*;
 import org.jitsi.videobridge.rest.exceptions.*;
@@ -70,7 +71,7 @@ public class Conferences extends ColibriResource
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{confId}")
-    public String getConference(@PathParam("confId") String confId)
+    public String getConference(@PathParam("confId") String confId, @QueryParam("endpoint") String endpoint)
     {
         Conference conference
                 = videobridgeProvider.get().getConference(confId, null);
@@ -82,7 +83,7 @@ public class Conferences extends ColibriResource
 
         ColibriConferenceIQ conferenceIQ = new ColibriConferenceIQ();
 
-        conference.getShim().describeDeep(conferenceIQ);
+        conference.getShim().describeDeep(conferenceIQ, StringUtils.isBlank(endpoint) ? Collections.emptySet() : Collections.singleton(endpoint));
 
         JSONObject conferenceJSONObject
                 = JSONSerializer.serializeConference(conferenceIQ);
@@ -137,14 +138,14 @@ public class Conferences extends ColibriResource
             throw new BadRequestExceptionWithMessage("Must not include conference ID");
         }
 
-        return getVideobridgeIqResponseAsJson(requestConferenceIQ, Videobridge.OPTION_ALLOW_NO_FOCUS);
+        return getVideobridgeIqResponseAsJson(requestConferenceIQ, Videobridge.OPTION_ALLOW_NO_FOCUS, Collections.emptySet());
     }
 
     @PATCH
     @Path("/{confId}")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public String patchConference(@PathParam("confId") String confId, String requestBody)
+    public String patchConference(@PathParam("confId") String confId, @QueryParam("endpoint") String endpoint, String requestBody)
     {
         Conference conference = videobridgeProvider.get().getConference(confId, null);
         if (conference == null)
@@ -170,12 +171,12 @@ public class Conferences extends ColibriResource
         }
 
         //todo: refactor result
-        getVideobridgeIqResponseAsJson(requestIq, Videobridge.OPTION_ALLOW_NO_FOCUS);
+        getVideobridgeIqResponseAsJson(requestIq, Videobridge.OPTION_ALLOW_NO_FOCUS, Collections.emptySet());
 
 
         ColibriConferenceIQ conferenceIQ = new ColibriConferenceIQ();
 
-        conference.getShim().describeDeep(conferenceIQ);
+        conference.getShim().describeDeep(conferenceIQ, StringUtils.isBlank(endpoint) ? Collections.emptySet() : Collections.singleton(endpoint));
 
         JSONObject conferenceJSONObject
                 = JSONSerializer.serializeConference(conferenceIQ);
@@ -183,10 +184,10 @@ public class Conferences extends ColibriResource
         return conferenceJSONObject.toJSONString();
     }
 
-    private String getVideobridgeIqResponseAsJson(ColibriConferenceIQ request, int options)
+    private String getVideobridgeIqResponseAsJson(ColibriConferenceIQ request, int options, Set<String> endpoints)
     {
         IQ responseIq = videobridgeProvider.get()
-                .handleColibriConferenceIQ(request, options);
+                .handleColibriConferenceIQ(request, options, endpoints);
 
         if (responseIq.getError() != null)
         {

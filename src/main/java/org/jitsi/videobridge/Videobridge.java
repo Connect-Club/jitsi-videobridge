@@ -586,10 +586,10 @@ public class Videobridge
      * represents the response to the specified request or <tt>null</tt> to
      * reply with <tt>feature-not-implemented</tt>
      */
-    public IQ handleColibriConferenceIQ(ColibriConferenceIQ conferenceIQ)
+    public IQ handleColibriConferenceIQ(ColibriConferenceIQ conferenceIQ, Set<String> endpoints)
     {
         return
-            handleColibriConferenceIQ(conferenceIQ, defaultProcessingOptions);
+            handleColibriConferenceIQ(conferenceIQ, defaultProcessingOptions, endpoints);
     }
 
     /**
@@ -602,9 +602,9 @@ public class Videobridge
      * reply with <tt>feature-not-implemented</tt>
      */
     public IQ handleColibriConferenceIQ(ColibriConferenceIQ conferenceIQ,
-                                        int options)
+                                        int options, Set<String> endpoints)
     {
-        return shim.handleColibriConferenceIQ(conferenceIQ, options);
+        return shim.handleColibriConferenceIQ(conferenceIQ, options, endpoints);
     }
 
 

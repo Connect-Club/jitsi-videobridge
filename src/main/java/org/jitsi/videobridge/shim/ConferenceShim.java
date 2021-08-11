@@ -29,6 +29,7 @@ import org.jitsi.xmpp.extensions.jingle.*;
 import org.json.simple.JSONObject;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.*;
 
 import static org.jitsi.videobridge.ConfAudioMixerTransport.AUDIO_MIXER_EP_ID;
@@ -110,10 +111,13 @@ public class ConferenceShim
      * Describes the channel bundles of this conference in a Colibri IQ.
      * @param iq the IQ to describe in.
      */
-    void describeChannelBundles(ColibriConferenceIQ iq)
+    void describeChannelBundles(ColibriConferenceIQ iq, Set<String> endpoints)
     {
         for (AbstractEndpoint endpoint : conference.getEndpoints())
         {
+            if (endpoints.size() > 0 && !endpoints.contains(endpoint.getID())) {
+                continue;
+            }
             String endpointId = endpoint.getID();
             ColibriConferenceIQ.ChannelBundle responseBundleIQ
                     = new ColibriConferenceIQ.ChannelBundle(endpointId);
@@ -128,10 +132,14 @@ public class ConferenceShim
      * <tt>ColibriConferenceIQ.Endpoint</tt> instances in <tt>iq</tt>.
      * @param iq the <tt>ColibriConferenceIQ</tt> in which to describe.
      */
-    void describeEndpoints(ColibriConferenceIQ iq)
+    void describeEndpoints(ColibriConferenceIQ iq, Set<String> endpoints)
     {
+        Predicate<AbstractEndpoint> predicate = x -> !AUDIO_MIXER_EP_ID.equals(x.getID());
+        if(endpoints.size() > 0) {
+            predicate = predicate.and(x -> x instanceof OctoEndpoint || endpoints.contains(x.getID()));
+        }
         conference.getEndpoints().stream()
-                .filter(x -> !AUDIO_MIXER_EP_ID.equals(x.getID()))
+                .filter(predicate)
                 .forEach(en -> iq.addEndpoint(new ColibriEndpointIQ(en.getID(), en.getUuid(), en.getStatsId(), en.getDisplayName())));
     }
 
@@ -167,7 +175,7 @@ public class ConferenceShim
      * @param iq the <tt>ColibriConferenceIQ</tt> to set the values of the
      * properties of this instance on
      */
-    public void describeDeep(ColibriConferenceIQ iq)
+    public void describeDeep(ColibriConferenceIQ iq, Set<String> endpoints)
     {
         describeShallow(iq);
 
@@ -178,6 +186,9 @@ public class ConferenceShim
 
             for (ChannelShim channelShim : contentShim.getChannelShims())
             {
+                if (endpoints.size() > 0 && !endpoints.contains(channelShim.getEndpoint().getID())) {
+                    continue;
+                }
                 if (channelShim instanceof SctpConnectionShim)
                 {
                     ColibriConferenceIQ.SctpConnection sctpConnectionIQ
@@ -195,8 +206,8 @@ public class ConferenceShim
                 }
             }
         }
-        describeEndpoints(iq);
-        describeChannelBundles(iq);
+        describeEndpoints(iq, endpoints);
+        describeChannelBundles(iq, endpoints);
     }
 
     /**

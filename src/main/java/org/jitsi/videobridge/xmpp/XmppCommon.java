@@ -28,6 +28,8 @@ import org.jivesoftware.smackx.iqversion.packet.Version;
 import org.json.simple.*;
 import org.osgi.framework.*;
 
+import java.util.Collections;
+
 /**
  * Implements logic for handling incoming IQs represented as Smack {@link IQ}
  * instances. This is used in both {@link ComponentImpl} (which receives IQs
@@ -226,7 +228,7 @@ public class XmppCommon
                 delayStats = colibriDelayStats;
                 response
                     = videobridge.handleColibriConferenceIQ(
-                    (ColibriConferenceIQ) request);
+                    (ColibriConferenceIQ) request, Collections.emptySet());
             }
             else if (request instanceof HealthCheckIQ)
             {

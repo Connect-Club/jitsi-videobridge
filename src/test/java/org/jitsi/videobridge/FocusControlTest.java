@@ -26,6 +26,8 @@ import org.junit.runners.*;
 import org.jxmpp.jid.*;
 import org.jxmpp.jid.impl.*;
 
+import java.util.Collections;
+
 import static org.junit.Assert.*;
 
 /**
@@ -75,7 +77,7 @@ public class FocusControlTest
             int processingOptions)
         throws Exception
     {
-        IQ respIq = bridge.handleColibriConferenceIQ(confIq, processingOptions);
+        IQ respIq = bridge.handleColibriConferenceIQ(confIq, processingOptions, Collections.emptySet());
 
         assertEquals(IQ.Type.result, respIq.getType());
         assertTrue(respIq instanceof ColibriConferenceIQ);
@@ -85,7 +87,7 @@ public class FocusControlTest
                                             int processingOptions)
         throws Exception
     {
-        IQ respIq = bridge.handleColibriConferenceIQ(confIq, processingOptions);
+        IQ respIq = bridge.handleColibriConferenceIQ(confIq, processingOptions, Collections.emptySet());
 
         logger.info(respIq.toXML());
 
@@ -123,7 +125,7 @@ public class FocusControlTest
 
         ColibriConferenceIQ confIq
             = ColibriUtilities.createConferenceIq(focusJid);
-        IQ respIq = bridge.handleColibriConferenceIQ(confIq);
+        IQ respIq = bridge.handleColibriConferenceIQ(confIq, Collections.emptySet());
 
         assertTrue(respIq instanceof ColibriConferenceIQ);
 
@@ -133,7 +135,7 @@ public class FocusControlTest
 
         // Only focus can access this conference now
         confIq.setFrom(JidCreate.from("someOtherJid"));
-        respIq = bridge.handleColibriConferenceIQ(confIq);
+        respIq = bridge.handleColibriConferenceIQ(confIq, Collections.emptySet());
         assertNotNull(respIq);
         XMPPError error = respIq.getError();
         //TODO(brian): this test fails, because we no longer hit the access control in Videobridge#getConference which
@@ -164,7 +166,7 @@ public class FocusControlTest
         ColibriConferenceIQ confIq = ColibriUtilities.createConferenceIq(null);
         int options = Videobridge.OPTION_ALLOW_NO_FOCUS;
 
-        IQ respIq = bridge.handleColibriConferenceIQ(confIq, options);
+        IQ respIq = bridge.handleColibriConferenceIQ(confIq, options, Collections.emptySet());
         assertTrue(respIq instanceof ColibriConferenceIQ);
 
         ColibriConferenceIQ respConfIq = (ColibriConferenceIQ) respIq;
@@ -172,7 +174,7 @@ public class FocusControlTest
         confIq.setID(respConfIq.getID());
 
         confIq.setFrom(JidCreate.from("someJid"));
-        respIq = bridge.handleColibriConferenceIQ(confIq, options);
+        respIq = bridge.handleColibriConferenceIQ(confIq, options, Collections.emptySet());
         assertNotNull(respIq);
     }
 
@@ -190,7 +192,7 @@ public class FocusControlTest
             = ColibriUtilities.createConferenceIq(focusJid);
         int options = Videobridge.OPTION_ALLOW_ANY_FOCUS;
 
-        IQ respIq = bridge.handleColibriConferenceIQ(confIq, options);
+        IQ respIq = bridge.handleColibriConferenceIQ(confIq, options, Collections.emptySet());
 
         assertTrue(respIq instanceof ColibriConferenceIQ);
 
@@ -201,15 +203,15 @@ public class FocusControlTest
 
         // Anyone can access the conference
         confIq.setFrom(JidCreate.from("someOtherJid"));
-        assertNotNull(bridge.handleColibriConferenceIQ(confIq, options));
+        assertNotNull(bridge.handleColibriConferenceIQ(confIq, options, Collections.emptySet()));
         confIq.setFrom((Jid)null);
-        assertNotNull(bridge.handleColibriConferenceIQ(confIq, options));
+        assertNotNull(bridge.handleColibriConferenceIQ(confIq, options, Collections.emptySet()));
 
         options = Videobridge.OPTION_ALLOW_NO_FOCUS;
         confIq.setFrom((Jid)null);
-        assertNotNull(bridge.handleColibriConferenceIQ(confIq, options));
+        assertNotNull(bridge.handleColibriConferenceIQ(confIq, options, Collections.emptySet()));
         confIq.setFrom(JidCreate.from("focus3"));
-        assertNotNull(bridge.handleColibriConferenceIQ(confIq, options));
+        assertNotNull(bridge.handleColibriConferenceIQ(confIq, options, Collections.emptySet()));
     }
 
     @Test

@@ -236,7 +236,7 @@ public class VideobridgeShim
      * reply with <tt>feature-not-implemented</tt>
      */
     public IQ handleColibriConferenceIQ(
-            ColibriConferenceIQ conferenceIQ, int options)
+            ColibriConferenceIQ conferenceIQ, int options, Set<String> endpoints)
     {
         logger.debug(() -> "Got ColibriConferenceIq:\n" + conferenceIQ.toXML());
         Jid focus = conferenceIQ.getFrom();
@@ -415,7 +415,7 @@ public class VideobridgeShim
             endpoint.setTransportInfo(transportIq);
         }
 
-        conferenceShim.describeChannelBundles(responseConferenceIQ);
+        conferenceShim.describeChannelBundles(responseConferenceIQ, endpoints);
 
         // Update the endpoint information of Videobridge with the endpoint
         // information of the IQ.
@@ -425,7 +425,7 @@ public class VideobridgeShim
             conferenceShim.updateEndpoint(colibriEndpoint);
         }
 
-        conferenceShim.describeEndpoints(responseConferenceIQ);
+        conferenceShim.describeEndpoints(responseConferenceIQ, endpoints);
 
         responseConferenceIQ.setType(IQ.Type.result);
 
