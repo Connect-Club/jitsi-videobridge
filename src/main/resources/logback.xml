@@ -3,10 +3,6 @@
         <resetJUL>true</resetJUL>
     </contextListener>
 
-    <appender name="jsonConsoleAppender" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
-    </appender>
-
     <appender name="jsonRollingFileAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>/var/log/jvb/json.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -21,7 +17,6 @@
 
     <appender name="asyncJsonRollingFileAppender" class="ch.qos.logback.classic.AsyncAppender">
         <queueSize>1000</queueSize>
-        <discardingThreshold>0</discardingThreshold>
         <appender-ref ref="jsonRollingFileAppender" />
     </appender>
 
@@ -34,9 +29,7 @@
     </appender>
 
     <root level="INFO">
-        <appender-ref ref="jsonConsoleAppender"/>
         <appender-ref ref="asyncJsonRollingFileAppender"/>
-<!--        <appender-ref ref="STDOUT" />-->
     </root>
 
     <logger name="org.jitsi.videobridge.xmpp.ComponentImpl" level="TRACE"></logger>
