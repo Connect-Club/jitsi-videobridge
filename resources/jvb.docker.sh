@@ -29,7 +29,7 @@ if [ -f $videobridge_rc  ]; then
         source $videobridge_rc
 fi
 
-if [ -z "$VIDEOBRIDGE_MAX_MEMORY" ]; then VIDEOBRIDGE_MAX_MEMORY=3072m; fi
+if [ -z "$VIDEOBRIDGE_MAX_MEMORY" ]; then VIDEOBRIDGE_MAX_MEMORY=6144m; fi
 
 if [[ ! -z "$DOCKER_HOST_ADDRESS" ]]; then
     LOCAL_ADDRESS=$(hostname -I | cut -d " " -f1)
