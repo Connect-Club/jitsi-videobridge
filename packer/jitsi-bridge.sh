@@ -34,8 +34,9 @@ sudo systemctl daemon-reload
 sudo systemctl enable node_exporter
 
 # configure kernel
-echo "net.core.rmem_max=10485760" | sudo tee -a /etc/sysctl.conf
+echo "net.core.rmem_max=104857600" | sudo tee -a /etc/sysctl.conf
 echo "net.core.netdev_max_backlog=100000" | sudo tee -a /etc/sysctl.conf
+echo "net.core.rmem_default=26214400" | sudo tee -a /etc/sysctl.conf
 
 # install videobridge
 ## prepare repo
