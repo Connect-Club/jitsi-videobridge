@@ -31,4 +31,6 @@
     <root level="WARN">
         <appender-ref ref="asyncJsonRollingFileAppender"/>
     </root>
+
+    <logger name="org.ice4j.ice.harvest.AbstractUdpListener" level="INFO"></logger>
 </configuration>
