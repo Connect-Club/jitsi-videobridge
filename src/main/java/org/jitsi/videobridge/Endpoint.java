@@ -1616,7 +1616,7 @@ public class Endpoint
                         audioForcedMuted = true;
                         break;
                     case VIDEO:
-                        logger.warn(() -> "Tried to mute the incoming video stream, but that is not currently supported");
+                        //logger.warn(() -> "Tried to mute the incoming video stream, but that is not currently supported");
                         break;
                 }
             }
