@@ -206,8 +206,12 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
 
                 @Override
                 public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
-                    if (!response.isSuccessful()) {
-                        logger.error("deleteAudioMixPipeline unsuccessful response. " + response.body().string());
+                    try {
+                        if (!response.isSuccessful()) {
+                            logger.error("deleteAudioMixPipeline unsuccessful response. " + Objects.requireNonNull(response.body()).string());
+                        }
+                    } finally {
+                        response.close();
                     }
                 }
             });
