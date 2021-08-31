@@ -148,6 +148,14 @@ public class VideobridgeShim
                 channelShim.getEndpoint().recreateMediaStreamTracks();
             }
 
+            if (MediaType.AUDIO.equals(contentShim.getMediaType()) && !channelSources.isEmpty()) {
+                Map<Long,String> ssrcToEndpoint = new HashMap<>();
+                for(SourcePacketExtension sourcee : channelSources) {
+                    ssrcToEndpoint.put(sourcee.getSSRC(), channelShim.getEndpoint().getID());
+                }
+                channelShim.getEndpoint().getConference().getAudioMixer().updatePipeline(ssrcToEndpoint);
+            }
+
             Integer channelLastN = channelIq.getLastN();
             if (channelLastN != null)
             {

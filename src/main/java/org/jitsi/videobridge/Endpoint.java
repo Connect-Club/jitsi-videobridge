@@ -752,6 +752,14 @@ public class Endpoint
                 .orElse(ClockUtils.NEVER);
     }
 
+    public List<Long> getRemoteAudioSsrcc() {
+        return channelShims.stream()
+                .filter(x->x.getMediaType()==MediaType.AUDIO)
+                .flatMap(x->x.getSources().stream())
+                .map(SourcePacketExtension::getSSRC)
+                .collect(Collectors.toList());
+    }
+
     /**
      * {@inheritDoc}
      */

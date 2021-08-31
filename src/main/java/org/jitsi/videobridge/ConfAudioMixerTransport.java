@@ -1,5 +1,6 @@
 package org.jitsi.videobridge;
 
+import com.google.common.collect.Maps;
 import okhttp3.*;
 import org.jetbrains.annotations.NotNull;
 import org.jitsi.nlj.PacketInfo;
@@ -17,6 +18,7 @@ import org.jitsi.videobridge.octo.config.OctoRtpReceiver;
 import org.jitsi.videobridge.transport.udp.UdpTransport;
 import org.jitsi.videobridge.util.ByteBufferPool;
 import org.jitsi.videobridge.util.TaskPools;
+import org.json.simple.JSONObject;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -29,6 +31,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 public class ConfAudioMixerTransport implements PotentialPacketHandler {
 
@@ -64,19 +67,24 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
                 .scheme("http")
                 .host("127.0.0.1")
                 .port(8888)
+                .addPathSegment("pipeline")
                 .addQueryParameter("id", id);
     }
 
-    private static int getAudioMixPipelineSrcPort(String id, int sinkPort, int seqNum) throws IOException {
+    private int getAudioMixPipelineSrcPort(String id, int sinkPort, int seqNum) throws IOException {
         Request request = new Request.Builder()
                 .url(getRtpMixerHttpUrlBuilder(id)
                         .addQueryParameter("sinkPort", Integer.toString(sinkPort))
                         .addQueryParameter("seqNum", Integer.toString(seqNum))
                         .build()
                 )
-                .get().build();
+                .post(RequestBody.create("", null))
+                .build();
         try (Response response = okHttpClient.newCall(request).execute()) {
             if (response.isSuccessful()) {
+                if (response.code() == 201) {
+                    TaskPools.SCHEDULED_POOL.submit((Runnable) this::updatePipeline);
+                }
                 return Integer.parseInt(response.body().string());
             } else {
                 throw new RuntimeException("Unsuccessful response. " + response.body().string());
@@ -220,5 +228,47 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
 
     public void addPayloadType(PayloadType payloadType) {
         streamInformationStore.addRtpPayloadType(payloadType);
+    }
+
+    private void updatePipeline() {
+        Map<Long, String> collect = conference.getLocalEndpoints().stream()
+                .flatMap(e -> e.getRemoteAudioSsrcc().stream().map(s -> Maps.immutableEntry(s, e.getID())))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        updatePipeline(collect);
+    }
+
+    public void updatePipeline(Map<Long, String> ssrcToEndpoint) {
+        updatePipeline(conference.getID(), ssrcToEndpoint);
+    }
+
+    private void updatePipeline(String id, Map<Long, String> ssrcToEndpoint) {
+        if (ssrcToEndpoint.size()==0) return;
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("Ssrcs", ssrcToEndpoint);
+        RequestBody body = RequestBody.create(
+                jsonObject.toJSONString(),
+                MediaType.parse("application/json")
+        );
+        Request request = new Request.Builder()
+                .url(getRtpMixerHttpUrlBuilder(id).build())
+                .put(body)
+                .build();
+        okHttpClient.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                logger.error("Failure updatePipeline", e);
+            }
+
+            @Override
+            public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                try {
+                    if(!response.isSuccessful()) {
+                        logger.error("Unsuccessful response on updatePipeline. Response: " + response.body().string());
+                    }
+                } finally {
+                    response.close();
+                }
+            }
+        });
     }
 }
