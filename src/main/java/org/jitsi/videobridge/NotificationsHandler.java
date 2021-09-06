@@ -8,10 +8,10 @@ import org.jitsi.eventadmin.Event;
 import org.jitsi.osgi.EventHandlerActivator;
 import org.jitsi.utils.logging2.Logger;
 import org.jitsi.utils.logging2.LoggerImpl;
+import org.jitsi.videobridge.util.PropertyUtil;
 import org.jitsi.videobridge.util.TaskPools;
 import org.json.simple.JSONObject;
 
-import javax.xml.ws.Holder;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -30,36 +30,6 @@ public class NotificationsHandler extends EventHandlerActivator {
 
     private String notificationUrl;
 
-    private static String getNotificationUrl() {
-        Holder<String> notificationUrlHolder = new Holder<>(System.getProperty("conference.notification.url"));
-
-        if (StringUtils.isBlank(notificationUrlHolder.value)) {
-            logger.info("System property `conference.notification.url` is not set. Trying to get it from google instance metadata");
-            Request request = new Request.Builder()
-                    .addHeader("Metadata-Flavor", "Google")
-                    .url("http://metadata.google.internal/computeMetadata/v1/instance/attributes/JVB_CONFERENCE_NOTIFICATION_URL")
-                    .get().build();
-            try (Response response = okHttpClient.newCall(request).execute()) {
-                if (response.isSuccessful()) {
-                    notificationUrlHolder.value = response.body().string();
-                    logger.info("Notification url set to: " + notificationUrlHolder.value);
-                } else {
-                    String msg = String.format(
-                            "Can not get `JVB_CONFERENCE_NOTIFICATION_URL` from google cloud metadata. Response(code=%s,message=%s)",
-                            response.code(),
-                            response.body() == null ? "" : response.body().string()
-                    );
-                    logger.error(msg);
-                }
-            } catch (Exception e) {
-                logger.error("Can not get `JVB_CONFERENCE_NOTIFICATION_URL` from google cloud metadata", e);
-            }
-        } else {
-            logger.info("Notification url set to: " + notificationUrlHolder.value);
-        }
-        return notificationUrlHolder.value;
-    }
-
     public NotificationsHandler() {
         super(new String[]{
                 EventFactory.CONFERENCE_CREATED_TOPIC,
@@ -76,7 +46,10 @@ public class NotificationsHandler extends EventHandlerActivator {
             return;
         }
         if (StringUtils.isBlank(notificationUrl)) {
-            notificationUrl = getNotificationUrl();
+            notificationUrl = PropertyUtil.getValue(
+                    "conference.notification.url",
+                    "JVB_CONFERENCE_NOTIFICATION_URL"
+            );
             if (StringUtils.isBlank(notificationUrl)) {
                 logger.debug(() -> "Could not handle an event because notification url is blank.");
                 return;

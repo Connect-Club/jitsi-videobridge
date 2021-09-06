@@ -2,6 +2,7 @@ package org.jitsi.videobridge;
 
 import com.google.common.collect.Maps;
 import okhttp3.*;
+import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jitsi.nlj.PacketInfo;
 import org.jitsi.nlj.RtpReceiver;
@@ -17,10 +18,12 @@ import org.jitsi.utils.logging2.Logger;
 import org.jitsi.videobridge.octo.config.OctoRtpReceiver;
 import org.jitsi.videobridge.transport.udp.UdpTransport;
 import org.jitsi.videobridge.util.ByteBufferPool;
+import org.jitsi.videobridge.util.PropertyUtil;
 import org.jitsi.videobridge.util.TaskPools;
 import org.json.simple.JSONObject;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
@@ -63,17 +66,16 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
     private final AtomicBoolean running = new AtomicBoolean(true);
 
     private static HttpUrl.Builder getRtpMixerHttpUrlBuilder(String id) {
-        return new HttpUrl.Builder()
-                .scheme("http")
-                .host("127.0.0.1")
-                .port(8888)
+        return Objects.requireNonNull(HttpUrl.parse(getAudioProcessorPipelineUrl()))
+                .newBuilder()
                 .addPathSegment("pipeline")
                 .addQueryParameter("id", id);
     }
 
-    private int getAudioMixPipelineSrcPort(String id, int sinkPort, int seqNum) throws IOException {
+    private int getAudioMixPipelineSrcPort(String id, String sinkHost, int sinkPort, int seqNum) throws IOException {
         Request request = new Request.Builder()
                 .url(getRtpMixerHttpUrlBuilder(id)
+                        .addQueryParameter("sinkHost", sinkHost)
                         .addQueryParameter("sinkPort", Integer.toString(sinkPort))
                         .addQueryParameter("seqNum", Integer.toString(seqNum))
                         .build()
@@ -99,6 +101,36 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
         okHttpClient.newCall(request).enqueue(callback);
     }
 
+    private static String audioProcessorIp;
+
+    private static String getAudioProcessorIp() {
+        if (StringUtils.isBlank(audioProcessorIp)) {
+            audioProcessorIp = PropertyUtil.getValue(
+                    "audio.processor.ip",
+                    "AUDIO_PROCESSOR_IP"
+            );
+            if (StringUtils.isBlank(audioProcessorIp)) {
+                throw new RuntimeException("Can not get mixer hostname");
+            }
+        }
+        return audioProcessorIp;
+    }
+
+    private static String audioProcessorPipelineUrl;
+
+    private static String getAudioProcessorPipelineUrl() {
+        if (StringUtils.isBlank(audioProcessorPipelineUrl)) {
+            audioProcessorPipelineUrl = PropertyUtil.getValue(
+                    "audio.processor.http.url",
+                    "AUDIO_PROCESSOR_HTTP_URL"
+            );
+            if (StringUtils.isBlank(audioProcessorPipelineUrl)) {
+                throw new RuntimeException("Can not get mixer hostname");
+            }
+        }
+        return audioProcessorPipelineUrl;
+    }
+
     private int seqNum = 0;
 
     private void updateMixerAddress() {
@@ -107,9 +139,9 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
         }
 
         try {
-            int mixerPort = getAudioMixPipelineSrcPort(conference.getID(), udpTransport.getLocalPort(), seqNum);
+            int mixerPort = getAudioMixPipelineSrcPort(conference.getID(), udpTransport.getLocalAddress().getHostAddress(), udpTransport.getLocalPort(), seqNum);
             if (mixerAddress == null || mixerAddress.getPort() != mixerPort) {
-                mixerAddress = new InetSocketAddress("127.0.0.1", mixerPort);
+                mixerAddress = new InetSocketAddress(getAudioProcessorIp(), mixerPort);
             }
         } catch (Exception e) {
             logger.error("updateMixerAddress error", e);
@@ -134,7 +166,7 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
             packetInfo.setEndpointId(AUDIO_MIXER_EP_ID);
             conference.handleIncomingPacket(packetInfo);
         });
-        udpTransport = new UdpTransport("127.0.0.1", 0, logger, SO_RCVBUF, SO_SNDBUF);
+        udpTransport = new UdpTransport(InetAddress.getLocalHost().getHostAddress(), 0, logger, SO_RCVBUF, SO_SNDBUF);
 
         updateMixerAddressScheduledFuture = TaskPools.SCHEDULED_POOL.scheduleAtFixedRate(this::updateMixerAddress, 0, 10, TimeUnit.SECONDS);
 

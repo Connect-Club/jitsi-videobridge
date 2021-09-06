@@ -153,7 +153,11 @@ public class VideobridgeShim
                 for(SourcePacketExtension sourcee : channelSources) {
                     ssrcToEndpoint.put(sourcee.getSSRC(), channelShim.getEndpoint().getID());
                 }
-                channelShim.getEndpoint().getConference().getAudioMixer().updatePipeline(ssrcToEndpoint);
+                try {
+                    channelShim.getEndpoint().getConference().getAudioMixer().updatePipeline(ssrcToEndpoint);
+                } catch (Exception e) {
+                    logger.error("Can not update pipeline", e);
+                }
             }
 
             Integer channelLastN = channelIq.getLastN();

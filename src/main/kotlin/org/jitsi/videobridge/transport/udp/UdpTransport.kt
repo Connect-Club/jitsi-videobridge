@@ -70,6 +70,9 @@ class UdpTransport @JvmOverloads @Throws(SocketException::class, UnknownHostExce
     val localPort : Int
         get() = socket.localPort
 
+    val localAddress : InetAddress
+        get() = socket.localAddress
+
     private val stats = Stats()
 
     var incomingDataHandler: IncomingDataHandler? = null
