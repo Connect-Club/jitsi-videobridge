@@ -5,8 +5,7 @@ sleep 60
 sudo apt-get update
 sudo apt-get install -y \
     git unzip gpg wget curl apt-transport-https \
-    openjdk-8-jdk openjdk-8-jre \
-    libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-good
+    openjdk-8-jdk openjdk-8-jre
 
 java -version
 
@@ -57,12 +56,6 @@ curl https://apache-mirror.rbc.ru/pub/apache/maven/maven-3/3.6.3/binaries/apache
 unzip maven.zip
 apache-maven-3.6.3/bin/mvn clean package
 sudo unzip target/jitsi-videobridge.docker.zip -d /opt
-## build golang
-cd rtp-audio-mixer
-curl -L https://golang.org/dl/go1.16.5.linux-amd64.tar.gz -o golang.tar.gz
-tar xzf golang.tar.gz
-./go/bin/go build
-sudo cp rtp-audio-mixer /opt/
 ## cleanup
 cd
 rm -rf jitsi-videobridge
@@ -75,10 +68,6 @@ sudo chmod a+w /var/log/jvb
 sudo install -m 0644 /tmp/videobridge.service /lib/systemd/system/videobridge.service
 sudo ln -s /lib/systemd/system/videobridge.service /etc/systemd/system/multi-user.target.wants/
 sudo systemctl enable videobridge.service
-
-sudo install -m 0644 /tmp/rtp-audio-mixer.service /lib/systemd/system/rtp-audio-mixer.service
-sudo ln -s /lib/systemd/system/rtp-audio-mixer.service /etc/systemd/system/multi-user.target.wants/
-sudo systemctl enable rtp-audio-mixer.service
 
 sudo systemctl start videobridge
 sleep 5

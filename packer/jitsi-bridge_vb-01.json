@@ -42,11 +42,6 @@
     },
     {
       "type": "file",
-      "source": "rtp-audio-mixer.service",
-      "destination": "/tmp/rtp-audio-mixer.service"
-    },
-    {
-      "type": "file",
       "source": "settings.xml",
       "destination": "/tmp/settings.xml"
     },

@@ -1,4 +1,0 @@
-[submodule "rtp-audio-mixer"]
-	path = rtp-audio-mixer
-	url = ../../jitsi/rtp-audio-mixer
-	branch = main
