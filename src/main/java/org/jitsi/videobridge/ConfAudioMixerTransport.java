@@ -238,7 +238,7 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
             outgoingPacketQueues.values().forEach(PacketInfoQueue::close);
             outgoingPacketQueues.clear();
 
-            deleteAudioMixPipeline(conference.getID(), new Callback() {
+            Callback callback = new Callback() {
                 @Override
                 public void onFailure(@NotNull Call call, @NotNull IOException e) {
                     logger.error("deleteAudioMixPipeline error", e);
@@ -254,7 +254,13 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
                         response.close();
                     }
                 }
-            });
+            };
+
+            try {
+                deleteAudioMixPipeline(conference.getID(), callback);
+            } catch (Exception e) {
+                logger.error("Can not delete audio mix pipeline", e);
+            }
         }
     }
 
