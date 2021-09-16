@@ -139,7 +139,7 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
         }
 
         try {
-            int mixerPort = getAudioMixPipelineSrcPort(conference.getID(), udpTransport.getLocalAddress().getHostAddress(), udpTransport.getLocalPort(), seqNum);
+            int mixerPort = getAudioMixPipelineSrcPort(conference.getGid(), udpTransport.getLocalAddress().getHostAddress(), udpTransport.getLocalPort(), seqNum);
             if (mixerAddress == null || mixerAddress.getPort() != mixerPort) {
                 mixerAddress = new InetSocketAddress(getAudioProcessorIp(), mixerPort);
             }
@@ -257,7 +257,7 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
             };
 
             try {
-                deleteAudioMixPipeline(conference.getID(), callback);
+                deleteAudioMixPipeline(conference.getGid(), callback);
             } catch (Exception e) {
                 logger.error("Can not delete audio mix pipeline", e);
             }
@@ -276,7 +276,7 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
     }
 
     public void updatePipeline(Map<Long, String> ssrcToEndpoint) {
-        updatePipeline(conference.getID(), ssrcToEndpoint);
+        updatePipeline(conference.getGid(), ssrcToEndpoint);
     }
 
     private void updatePipeline(String id, Map<Long, String> ssrcToEndpoint) {
