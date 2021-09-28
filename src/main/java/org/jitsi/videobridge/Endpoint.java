@@ -558,6 +558,12 @@ public class Endpoint
         bitrateController.setMaxRxFrameHeightPx(maxReceiveFrameHeightPx);
     }
 
+    @Override
+    public void setMaxReceiveFrameRateFps(double maxReceiveFrameRateFps) {
+        super.setMaxReceiveFrameRateFps(maxReceiveFrameRateFps);
+        bitrateController.setMaxRxFrameRateFps(maxReceiveFrameRateFps);
+    }
+
     private Long localAudioSsrc;
 
     /**

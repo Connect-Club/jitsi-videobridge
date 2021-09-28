@@ -206,6 +206,8 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
      */
     public void setMaxReceiveFrameHeightPx(int maxReceiveFrameHeightPx) { }
 
+    public void setMaxReceiveFrameRateFps(double maxReceiveFrameRateFps) {}
+
     /**
      * Checks whether a specific SSRC belongs to this endpoint.
      * @param ssrc

@@ -498,24 +498,50 @@ public abstract class AbstractEndpointMessageTransport
         JSONObject jsonObject)
     {
         Object o = jsonObject.get("maxFrameHeight");
-        if (!(o instanceof Number))
+        if (o != null)
         {
-            logger.warn(
-                "Received a non-number maxFrameHeight video constraint from "
-                    + getId() + ": " + o.toString());
-            return;
-        }
-        int maxFrameHeight = ((Number) o).intValue();
-        if (logger.isDebugEnabled())
-        {
-            logger.debug(
-                "Received a maxFrameHeight video constraint from "
-                    + getId() + ": " + maxFrameHeight);
-        }
+            if (!(o instanceof Number))
+            {
+                logger.warn(
+                        "Received a non-number maxFrameHeight video constraint from "
+                                + getId() + ": " + o);
+                return;
+            }
+            int maxFrameHeight = ((Number) o).intValue();
+            if (logger.isDebugEnabled())
+            {
+                logger.debug(
+                        "Received a maxFrameHeight video constraint from "
+                                + getId() + ": " + maxFrameHeight);
+            }
 
-        if (endpoint != null)
+            if (endpoint != null)
+            {
+                endpoint.setMaxReceiveFrameHeightPx(maxFrameHeight);
+            }
+        }
+        o = jsonObject.get("maxFrameRate");
+        if (o != null)
         {
-            endpoint.setMaxReceiveFrameHeightPx(maxFrameHeight);
+            if (!(o instanceof Number))
+            {
+                logger.warn(
+                        "Received a non-number maxFrameRate video constraint from "
+                                + getId() + ": " + o);
+                return;
+            }
+            double maxFrameRate = ((Number) o).doubleValue();
+            if (logger.isDebugEnabled())
+            {
+                logger.debug(
+                        "Received a maxFrameRate video constraint from "
+                                + getId() + ": " + maxFrameRate);
+            }
+
+            if (endpoint != null)
+            {
+                endpoint.setMaxReceiveFrameRateFps(maxFrameRate);
+            }
         }
     }
 

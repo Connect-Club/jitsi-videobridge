@@ -172,6 +172,8 @@ public class BitrateController
      */
     private int maxRxFrameHeightPx = -1;
 
+    private double maxRxFrameRateFps = -1;
+
     /**
      * The IDs of the endpoints which have been selected by the endpoint to
      * which this {@link BitrateController} belongs.
@@ -651,8 +653,6 @@ public class BitrateController
                             .addField("target_idx", trackTargetIdx)
                             .addField("ideal_idx", trackIdealIdx)
                             .addField("target_bps", trackTargetBps)
-                            .addField("selected",
-                                trackBitrateAllocation.selected)
                             .addField("oversending",
                                 trackBitrateAllocation.oversending)
                             .addField("preferred_idx",
@@ -951,8 +951,8 @@ public class BitrateController
                             sourceEndpoint,
                             track,
                             true /* fitsInLastN */,
-                            true /* selected */,
-                            maxRxFrameHeightPx));
+                            maxRxFrameHeightPx,
+                            maxRxFrameRateFps));
                 }
                 logger.trace(() -> "Adding selected endpoint " + sourceEndpoint.getID() + " to allocations");
 
@@ -990,8 +990,8 @@ public class BitrateController
                                 sourceEndpoint,
                                 track,
                                 true /* fitsInLastN */,
-                                false /* selected */,
-                                maxRxFrameHeightPx));
+                                maxRxFrameHeightPx,
+                                maxRxFrameRateFps));
                     }
 
                     logger.trace(() -> "Adding pinned endpoint " + sourceEndpoint.getID() + " to allocations");
@@ -1025,8 +1025,9 @@ public class BitrateController
                         trackBitrateAllocations.add(
                             endpointPriority, new TrackBitrateAllocation(
                                 sourceEndpoint, track,
-                                forwarded, false /* selected */,
-                                maxRxFrameHeightPx));
+                                forwarded,
+                                maxRxFrameHeightPx,
+                                maxRxFrameRateFps));
                     }
 
                     logger.trace(() -> "Adding endpoint " + sourceEndpoint.getID() + " to allocations");
@@ -1051,6 +1052,19 @@ public class BitrateController
 
             logger.debug(() -> "setting max receive frame height to " +
                     + maxRxFrameHeightPx + "px, updating");
+
+            update();
+        }
+    }
+
+    public void setMaxRxFrameRateFps(double maxRxFrameRateFps)
+    {
+        if (this.maxRxFrameRateFps != maxRxFrameRateFps)
+        {
+            this.maxRxFrameRateFps = maxRxFrameRateFps;
+
+            logger.debug(() -> "setting max receive frame rate to " +
+                    + maxRxFrameRateFps + "fps, updating");
 
             update();
         }
@@ -1220,12 +1234,6 @@ public class BitrateController
         private final boolean fitsInLastN;
 
         /**
-         * Indicates whether this {@link Endpoint} is on-stage/selected or not
-         * at the {@link Endpoint} that owns this {@link BitrateController}.
-         */
-        private final boolean selected;
-
-        /**
          * Helper field that keeps the SSRC of the target stream.
          */
         private final long targetSSRC;
@@ -1255,7 +1263,7 @@ public class BitrateController
          *
          * The encoding quality of the 4th rated quality is 8.
          */
-        private final int ratedPreferredIdx;
+        private final int   ratedPreferredIdx;
 
         /**
          * The current rated quality target for this track. It can potentially
@@ -1290,10 +1298,9 @@ public class BitrateController
          */
         private TrackBitrateAllocation(
             AbstractEndpoint endpoint, MediaStreamTrackDesc track,
-            boolean fitsInLastN, boolean selected, int maxFrameHeight)
+            boolean fitsInLastN, int maxFrameHeight, double maxFrameRate)
         {
             this.endpointID = endpoint.getID();
-            this.selected = selected;
             this.fitsInLastN = fitsInLastN;
             this.track = track;
 
@@ -1327,11 +1334,6 @@ public class BitrateController
 
             long nowMs = System.currentTimeMillis();
             List<RateSnapshot> ratesList = new ArrayList<>();
-            // Initialize the list of flows that we will consider for sending
-            // for this track. For example, for the on-stage participant we
-            // consider 720p@30fps, 360p@30fps, 180p@30fps, 180p@15fps,
-            // 180p@7.5fps while for the thumbnails we consider 180p@30fps,
-            // 180p@15fps and 180p@7.5fps
             int ratedPreferredIdx = 0;
             long idealBps = 0;
             for (RTPEncodingDesc encoding : encodings)
@@ -1340,44 +1342,22 @@ public class BitrateController
                 {
                     continue;
                 }
-                if (selected)
+                if (maxFrameRate >= 0 && encoding.getFrameRate() > maxFrameRate)
                 {
-                    // For the selected participant we favor frame rate over
-                    // resolution. Basically what we want for the on-stage
-                    // participant is 180p7.5fps, 180p15fps, 180p30fps,
-                    // 360p30fps and 720p30fps.
-                    if (encoding.getHeight() < Config.onstagePreferredHeightPx()
-                        || encoding.getFrameRate() >= Config.onstagePreferredFramerate())
-                    {
-                        long encodingBitrateBps = encoding.getBitrateBps(nowMs);
-                        if (encodingBitrateBps > 0)
-                        {
-                            idealBps = encodingBitrateBps;
-                        }
-                        ratesList.add(
-                            new RateSnapshot(encodingBitrateBps, encoding));
-                    }
-
-                    if (encoding.getHeight() <= Config.onstagePreferredHeightPx())
-                    {
-                        ratedPreferredIdx = ratesList.size() - 1;
-                    }
+                    continue;
                 }
-                else if (encoding.getHeight() <= Config.thumbnailMaxHeightPx())
+                long encodingBitrateBps = encoding.getBitrateBps(nowMs);
+                if (encodingBitrateBps > 0)
                 {
-                    // For the thumbnails, we consider all temporal layers of
-                    // the low resolution stream.
-                    long encodingBitrateBps = encoding.getBitrateBps(nowMs);
-                    if (encodingBitrateBps > 0)
-                    {
-                        idealBps = encodingBitrateBps;
-                    }
-                    ratesList.add(
+                    idealBps = encodingBitrateBps;
+                }
+                ratesList.add(
                         new RateSnapshot(encodingBitrateBps, encoding));
-                }
             }
 
             this.idealBitrate = idealBps;
+
+            ratedPreferredIdx = ratesList.size() - 1;
 
             if (timeSeriesLogger.isTraceEnabled())
             {
@@ -1416,7 +1396,7 @@ public class BitrateController
                 return;
             }
 
-            if (ratedTargetIdx == -1 && selected)
+            if (ratedTargetIdx == -1)
             {
                 if (!Config.enableOnstageVideoSuspend())
                 {

@@ -23,6 +23,8 @@ import org.json.simple.*;
 import java.lang.*;
 import java.lang.SuppressWarnings;
 
+import static org.jitsi.videobridge.xmpp.MediaStreamTrackFactory.VP8_SIMULCAST_TEMPORAL_LAYERS;
+
 /**
  * This class is responsible for dropping VP8 simulcast/svc packets based on
  * their quality, i.e. packets that correspond to qualities that are above a
@@ -359,7 +361,7 @@ class VP8QualityFilter
      */
     private static int getTemporalLayerId(int index)
     {
-        return index > -1 ? index % 3 : -1;
+        return index > -1 ? index % VP8_SIMULCAST_TEMPORAL_LAYERS : -1;
     }
 
     /**
@@ -374,7 +376,7 @@ class VP8QualityFilter
      */
     private static int getSpatialLayerId(int index)
     {
-        return index > -1 ? index / 3 : -1;
+        return index > -1 ? index / VP8_SIMULCAST_TEMPORAL_LAYERS : -1;
     }
 
     /**
