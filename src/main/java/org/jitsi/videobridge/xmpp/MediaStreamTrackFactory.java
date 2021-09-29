@@ -60,7 +60,7 @@ public class MediaStreamTrackFactory
      * FIXME: hardcoded ugh.. this should be either signaled or somehow included
      * in the RTP stream.
      */
-    public static final int VP8_SIMULCAST_TEMPORAL_LAYERS = 2;
+    public static final int VP8_SIMULCAST_TEMPORAL_LAYERS = 3;
 
     /**
      * The resolution of the base stream when activating simulcast for VP8.
