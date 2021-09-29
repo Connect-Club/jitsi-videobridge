@@ -52,20 +52,6 @@ public class EndpointMessageBuilder
 
     /**
      * The {@link Videobridge#COLIBRI_CLASS} value indicating a
-     * {@code LastNChangedEvent}.
-     */
-    public static final String COLIBRI_CLASS_LASTN_CHANGED
-        = "LastNChangedEvent";
-
-    /**
-     * The {@link Videobridge#COLIBRI_CLASS} value indicating a
-     * {@code LastNEndpointsChangedEvent}.
-     */
-    public static final String COLIBRI_CLASS_LASTN_ENDPOINTS_CHANGED
-        = "LastNEndpointsChangeEvent";
-
-    /**
-     * The {@link Videobridge#COLIBRI_CLASS} value indicating a
      * {@code PinnedEndpointChangedEvent}.
      */
     public static final String COLIBRI_CLASS_PINNED_ENDPOINT_CHANGED
@@ -90,20 +76,6 @@ public class EndpointMessageBuilder
      */
     public static final String COLIBRI_CLASS_RECEIVER_VIDEO_CONSTRAINT
         = "ReceiverVideoConstraint";
-
-    /**
-     * The {@link Videobridge#COLIBRI_CLASS} value indicating a
-     * {@code SelectedEndpointChangedEvent}.
-     */
-    public static final String COLIBRI_CLASS_SELECTED_ENDPOINT_CHANGED
-        = "SelectedEndpointChangedEvent";
-
-    /**
-     * The {@link Videobridge#COLIBRI_CLASS} value indicating a
-     * {@code SelectedEndpointChangedEvent}.
-     */
-    public static final String COLIBRI_CLASS_SELECTED_ENDPOINTS_CHANGED
-        = "SelectedEndpointsChangedEvent";
 
     /**
      * The {@link Videobridge#COLIBRI_CLASS} value indicating a
@@ -164,52 +136,6 @@ public class EndpointMessageBuilder
     public static String createServerHelloEvent()
     {
         return "{\"colibriClass\":\"" + COLIBRI_CLASS_SERVER_HELLO + "\"}";
-    }
-
-    /**
-     * Creates a LastNEndpointsChanged message.
-     */
-    public static String createLastNEndpointsChangeEvent(
-            Collection<String> forwardedEndpoints,
-            Collection<String> endpointsEnteringLastN,
-            Collection<String> conferenceEndpoints)
-    {
-        StringBuilder msg
-            = new StringBuilder(
-                "{\"colibriClass\":\""
-                + COLIBRI_CLASS_LASTN_ENDPOINTS_CHANGED + "\"");
-
-        // lastNEndpoints
-        msg.append(",\"lastNEndpoints\":");
-        msg.append(getJsonString(forwardedEndpoints));
-
-        // endpointsEnteringLastN
-        msg.append(",\"endpointsEnteringLastN\":");
-        msg.append(getJsonString(endpointsEnteringLastN));
-
-        // conferenceEndpoints
-        msg.append(",\"conferenceEndpoints\":");
-        msg.append(getJsonString(conferenceEndpoints));
-
-        msg.append('}');
-
-        return msg.toString();
-    }
-
-    /**
-     * Create a {@link EndpointMessageBuilder#COLIBRI_CLASS_SELECTED_UPDATE}
-     * colibri message
-     * @param isSelected whether or not this endpoint has been marked as a
-     * selected endpoint
-     * @return a JSON string serialization of the created message
-     */
-    @SuppressWarnings("unchecked")
-    public static String createSelectedUpdateMessage(boolean isSelected)
-    {
-        JSONObject selectedUpdate = new JSONObject();
-        selectedUpdate.put("colibriClass", COLIBRI_CLASS_SELECTED_UPDATE);
-        selectedUpdate.put("isSelected", isSelected);
-        return selectedUpdate.toJSONString();
     }
 
     public static String createEndpointExpiredEvent(String endpointId) {

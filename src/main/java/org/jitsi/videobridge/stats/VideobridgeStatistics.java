@@ -327,19 +327,7 @@ public class VideobridgeStatistics
                     rttCount++;
                 }
 
-                // Assume we're receiving a video stream from the endpoint
-                int endpointStreams = 1;
-
-                // Assume we're sending one video stream to this endpoint
-                // for each other endpoint in the conference unless there's
-                // a limit imposed by lastN.
-                int lastN = endpoint.getLastN();
-                endpointStreams
-                   += lastN == -1
-                       ? numConferenceEndpoints - 1
-                       : Math.min(lastN, numConferenceEndpoints - 1);
-
-               videoStreams += endpointStreams;
+               videoStreams += 1;
             }
 
             updateBuckets(audioSendersBuckets, conferenceAudioSenders);

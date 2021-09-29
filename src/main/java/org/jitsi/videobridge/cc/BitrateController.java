@@ -129,13 +129,6 @@ public class BitrateController
         adaptiveTrackProjectionMap = new ConcurrentHashMap<>();
 
     /**
-     * The {@link List} of endpoints that are currently being forwarded,
-     * represented by their IDs. Required for backwards compatibility with
-     * existing LastN code.
-     */
-    private Set<String> forwardedEndpointIds = INITIAL_EMPTY_SET;
-
-    /**
      * A boolean that indicates whether to enable or disable the video quality
      * tracing.
      */
@@ -172,27 +165,13 @@ public class BitrateController
      */
     private int maxRxFrameHeightPx = -1;
 
-    private double maxRxFrameRateFps = -1;
-
-    /**
-     * The IDs of the endpoints which have been selected by the endpoint to
-     * which this {@link BitrateController} belongs.
-     */
-    private Set<String> selectedEndpointIds = Collections.emptySet();
+    private int maxRxFrameTemporalLayerId = -1;
 
     /**
      * The IDs of the endpoints which have been pinned by the endpoint to which
      * this {@link BitrateController} belongs.
      */
     private Set<String> pinnedEndpointIds = Collections.emptySet();
-
-    private final Set<String> allowedEndpointIds = Sets.newConcurrentHashSet();
-
-    /**
-     * The last-n value for the endpoint to which this {@link BitrateController}
-     * belongs
-     */
-    private int lastN = -1;
 
     /**
      * The ID of the endpoint to which this {@link BitrateController} belongs
@@ -287,11 +266,7 @@ public class BitrateController
     public boolean accept(@NotNull PacketInfo packetInfo)
     {
         if(packetInfo.getPacket() instanceof AudioRtpPacket) {
-            if(getLastN() == 0) {
-                return allowedEndpointIds.contains(packetInfo.getEndpointId());
-            } else {
-                return true;
-            }
+            return pinnedEndpointIds.contains(packetInfo.getEndpointId());
         }
 
         VideoRtpPacket videoRtpPacket = packetInfo.packetAs();
@@ -369,13 +344,10 @@ public class BitrateController
     public JSONObject getDebugState()
     {
         JSONObject debugState = new JSONObject();
-        debugState.put("forwardedEndpoints", forwardedEndpointIds.toString());
         debugState.put("trustBwe", Config.trustBwe());
         debugState.put("lastBwe", lastBwe);
         debugState.put("maxRxFrameHeightPx", maxRxFrameHeightPx);
-        debugState.put("selectedEndpointIds", selectedEndpointIds.toString());
         debugState.put("pinnedEndpointIds", pinnedEndpointIds.toString());
-        debugState.put("lastN", lastN);
         debugState.put("supportsRtx", supportsRtx);
         JSONObject adaptiveTrackProjectionsJson = new JSONObject();
         for (Map.Entry<Long, AdaptiveTrackProjection> entry
@@ -586,10 +558,6 @@ public class BitrateController
      */
     private synchronized void update()
     {
-        allowedEndpointIds.addAll(pinnedEndpointIds);
-        allowedEndpointIds.addAll(selectedEndpointIds);
-        allowedEndpointIds.removeIf(x -> !pinnedEndpointIds.contains(x) && !selectedEndpointIds.contains(x));
-
         long nowMs = System.currentTimeMillis();
 
         long bweBps = getAvailableBandwidth(nowMs);
@@ -598,13 +566,6 @@ public class BitrateController
         TrackBitrateAllocation[]
             trackBitrateAllocations = allocate(bweBps, destinationEndpoint.getConference().getEndpoints());
 
-        // Update the the controllers based on the allocation and send a
-        // notification to the client the set of forwarded endpoints has
-        // changed.
-        Set<String> oldForwardedEndpointIds = forwardedEndpointIds;
-
-        Set<String> newForwardedEndpointIds = new HashSet<>();
-        Set<String> endpointsEnteringLastNIds = new HashSet<>();
         Set<String> conferenceEndpointIds = new HashSet<>();
 
         // Accumulators used for tracing purposes.
@@ -662,18 +623,6 @@ public class BitrateController
                             .addField("ideal_bps", trackIdealBps));
                     }
                 }
-
-                if (trackTargetIdx > -1)
-                {
-                    newForwardedEndpointIds
-                        .add(trackBitrateAllocation.endpointID);
-                    if (!oldForwardedEndpointIds
-                        .contains(trackBitrateAllocation.endpointID))
-                    {
-                        endpointsEnteringLastNIds
-                            .add(trackBitrateAllocation.endpointID);
-                    }
-                }
             }
         }
         else
@@ -707,18 +656,6 @@ public class BitrateController
         // The BandwidthProber will pick this up.
         this.adaptiveTrackProjections
             = Collections.unmodifiableList(adaptiveTrackProjections);
-
-        if (!newForwardedEndpointIds.equals(oldForwardedEndpointIds))
-        {
-            // TODO(george) bring back sending this message on message transport
-            //  connect
-            destinationEndpoint.sendLastNEndpointsChangeEvent(
-                newForwardedEndpointIds,
-                endpointsEnteringLastNIds,
-                conferenceEndpointIds);
-        }
-
-        this.forwardedEndpointIds = newForwardedEndpointIds;
     }
 
     /**
@@ -828,15 +765,6 @@ public class BitrateController
                 TrackBitrateAllocation trackBitrateAllocation
                     = trackBitrateAllocations[i];
 
-                if (!trackBitrateAllocation.fitsInLastN)
-                {
-                    // participants that are not forwarded are sunk in the
-                    // prioritization step. When we encounter a participant
-                    // who's not on-stage, that means that we're done with the
-                    // on-stage participants.
-                    break;
-                }
-
                 maxBandwidth += trackBitrateAllocation.getTargetBitrate();
                 trackBitrateAllocation.improve(maxBandwidth);
                 maxBandwidth -= trackBitrateAllocation.getTargetBitrate();
@@ -900,73 +828,21 @@ public class BitrateController
         List<TrackBitrateAllocation> trackBitrateAllocations
             = new ArrayList<>();
 
-        int adjustedLastN = this.lastN;
-        if (adjustedLastN < 0)
-        {
-            // If lastN is disabled, pretend lastN == szConference.
-            adjustedLastN = conferenceEndpoints.size() - 1;
-        }
-        else
-        {
-            // If lastN is enabled, pretend lastN at most as big as the size
-            // of the conference.
-            adjustedLastN = Math.min(lastN, conferenceEndpoints.size() - 1);
-        }
         if (logger.isDebugEnabled())
         {
-            logger.debug("Prioritizing endpoints, adjusted last-n: " + adjustedLastN +
+            logger.debug("Prioritizing endpoints" +
                 ", sorted endpoint list: " +
                 conferenceEndpoints.stream().map(AbstractEndpoint::getID).collect(Collectors.joining(", ")) +
-                ". Selected endpoints: " + String.join(", ", selectedEndpointIds) +
                 ". Pinned endpoints: " + String.join(", ", pinnedEndpointIds));
         }
 
         int endpointPriority = 0;
 
-        // First, bubble-up the selected endpoints (whoever's on-stage needs to
-        // be visible).
-        for (Iterator<AbstractEndpoint> it = conferenceEndpoints.iterator();
-             it.hasNext() && (adjustedLastN == 0 || endpointPriority < adjustedLastN);)
-        {
-            AbstractEndpoint sourceEndpoint = it.next();
-            if (sourceEndpoint.isExpired()
-                    || sourceEndpoint.getID().equals(destinationEndpoint.getID())
-                    || !selectedEndpointIds.contains(sourceEndpoint.getID()))
-            {
-                logger.trace(() -> "Endpoint " + sourceEndpoint.getID() + " is expired, is this destination, or " +
-                    "is not selected; ignoring");
-                continue;
-            }
-
-            MediaStreamTrackDesc[] tracks
-                = sourceEndpoint.getMediaStreamTracks();
-
-            if (!ArrayUtils.isNullOrEmpty(tracks))
-            {
-                for (MediaStreamTrackDesc track : tracks)
-                {
-                    trackBitrateAllocations.add(
-                        endpointPriority,
-                        new TrackBitrateAllocation(
-                            sourceEndpoint,
-                            track,
-                            true /* fitsInLastN */,
-                            maxRxFrameHeightPx,
-                            maxRxFrameRateFps));
-                }
-                logger.trace(() -> "Adding selected endpoint " + sourceEndpoint.getID() + " to allocations");
-
-                endpointPriority++;
-            }
-
-            it.remove();
-        }
-
         // Then, bubble-up the pinned endpoints.
         if (!pinnedEndpointIds.isEmpty())
         {
             for (Iterator<AbstractEndpoint> it = conferenceEndpoints.iterator();
-                 it.hasNext() && (adjustedLastN == 0 || endpointPriority < adjustedLastN);)
+                 it.hasNext();)
             {
                 AbstractEndpoint sourceEndpoint = it.next();
                 if (sourceEndpoint.isExpired()
@@ -989,9 +865,8 @@ public class BitrateController
                             endpointPriority, new TrackBitrateAllocation(
                                 sourceEndpoint,
                                 track,
-                                true /* fitsInLastN */,
                                 maxRxFrameHeightPx,
-                                maxRxFrameRateFps));
+                                maxRxFrameTemporalLayerId));
                     }
 
                     logger.trace(() -> "Adding pinned endpoint " + sourceEndpoint.getID() + " to allocations");
@@ -999,40 +874,6 @@ public class BitrateController
                 }
 
                 it.remove();
-            }
-        }
-
-        // Finally, deal with any remaining endpoints.
-        if (!conferenceEndpoints.isEmpty())
-        {
-            for (AbstractEndpoint sourceEndpoint : conferenceEndpoints)
-            {
-                if (sourceEndpoint.isExpired()
-                    || sourceEndpoint.getID().equals(destinationEndpoint.getID()))
-                {
-                    continue;
-                }
-
-                boolean forwarded = endpointPriority < adjustedLastN;
-
-                MediaStreamTrackDesc[] tracks
-                    = sourceEndpoint.getMediaStreamTracks();
-
-                if (!ArrayUtils.isNullOrEmpty(tracks))
-                {
-                    for (MediaStreamTrackDesc track : tracks)
-                    {
-                        trackBitrateAllocations.add(
-                            endpointPriority, new TrackBitrateAllocation(
-                                sourceEndpoint, track,
-                                forwarded,
-                                maxRxFrameHeightPx,
-                                maxRxFrameRateFps));
-                    }
-
-                    logger.trace(() -> "Adding endpoint " + sourceEndpoint.getID() + " to allocations");
-                    endpointPriority++;
-                }
             }
         }
 
@@ -1057,31 +898,15 @@ public class BitrateController
         }
     }
 
-    public void setMaxRxFrameRateFps(double maxRxFrameRateFps)
+    public void setMaxRxFrameTemporalLayerId(int maxRxFrameTemporalLayerId)
     {
-        if (this.maxRxFrameRateFps != maxRxFrameRateFps)
+        if (this.maxRxFrameTemporalLayerId != maxRxFrameTemporalLayerId)
         {
-            this.maxRxFrameRateFps = maxRxFrameRateFps;
+            this.maxRxFrameTemporalLayerId = maxRxFrameTemporalLayerId;
 
-            logger.debug(() -> "setting max receive frame rate to " +
-                    + maxRxFrameRateFps + "fps, updating");
+            logger.debug(() -> "setting max receive frame temporal layer id to " +
+                    + maxRxFrameTemporalLayerId + "fps, updating");
 
-            update();
-        }
-    }
-
-    /**
-     * Set the endpoint IDs the endpoint to which this
-     * {@link BitrateController} belongs has selected
-     *
-     * @param selectedEndpointIds the endpoint IDs the endpoint to which this
-     * {@link BitrateController} belongs has selected
-     */
-    public void setSelectedEndpointIds(Set<String> selectedEndpointIds)
-    {
-        if (!this.selectedEndpointIds.equals(selectedEndpointIds))
-        {
-            this.selectedEndpointIds = new HashSet<>(selectedEndpointIds);
             update();
         }
     }
@@ -1099,28 +924,6 @@ public class BitrateController
             this.pinnedEndpointIds = new HashSet<>(pinnedEndpointIds);
             update();
         }
-    }
-
-    /**
-     * Sets the LastN value.
-     */
-    public void setLastN(int lastN)
-    {
-        if (this.lastN != lastN) {
-            this.lastN = lastN;
-
-            logger.debug(() -> destinationEndpoint.getID() + " lastN has changed, updating");
-
-            update();
-        }
-    }
-
-    /**
-     * Gets the LastN value.
-     */
-    public int getLastN()
-    {
-        return lastN;
     }
 
     /**
@@ -1228,12 +1031,6 @@ public class BitrateController
         private final String endpointID;
 
         /**
-         * Indicates whether this {@link Endpoint} is forwarded or not to the
-         * {@link Endpoint} that owns this {@link BitrateController}.
-         */
-        private final boolean fitsInLastN;
-
-        /**
          * Helper field that keeps the SSRC of the target stream.
          */
         private final long targetSSRC;
@@ -1291,17 +1088,12 @@ public class BitrateController
          * pertains to.
          * @param track the {@link MediaStreamTrackDesc} that this bitrate
          * allocation pertains to.
-         * @param fitsInLastN a flag indicating whether or not the endpoint is
-         * in LastN.
-         * @param selected a flag indicating whether or not the endpoint is
-         * selected.
          */
         private TrackBitrateAllocation(
             AbstractEndpoint endpoint, MediaStreamTrackDesc track,
-            boolean fitsInLastN, int maxFrameHeight, double maxFrameRate)
+            int maxFrameHeight, int maxFrameTemporalLayerId)
         {
             this.endpointID = endpoint.getID();
-            this.fitsInLastN = fitsInLastN;
             this.track = track;
 
             RTPEncodingDesc[] encodings;
@@ -1324,7 +1116,7 @@ public class BitrateController
                 }
             }
 
-            if (targetSSRC == -1 || !fitsInLastN)
+            if (targetSSRC == -1)
             {
                 ratedPreferredIdx = -1;
                 idealBitrate = 0;
@@ -1342,7 +1134,7 @@ public class BitrateController
                 {
                     continue;
                 }
-                if (maxFrameRate >= 0 && encoding.getFrameRate() > maxFrameRate)
+                if (maxFrameTemporalLayerId >= 0 && encoding.getTid() > maxFrameTemporalLayerId)
                 {
                     continue;
                 }

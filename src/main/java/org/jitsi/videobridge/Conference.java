@@ -924,29 +924,6 @@ public class Conference
                         propertyChangeListener);
             }
         }
-        else if (Endpoint.SELECTED_ENDPOINTS_PROPERTY_NAME
-                .equals(ev.getPropertyName()))
-        {
-            Set<String> oldSelectedEndpoints = (Set<String>)ev.getOldValue();
-            Set<String> newSelectedEndpoints = (Set<String>)ev.getNewValue();
-            // Any endpoints in the oldSelectedEndpoints list which AREN'T
-            // in the newSelectedEndpoints list should have their count decremented
-            oldSelectedEndpoints.stream()
-                .filter(
-                    oldSelectedEp -> !newSelectedEndpoints.contains(oldSelectedEp))
-                .map(this::getEndpoint)
-                .filter(Objects::nonNull)
-                .forEach(AbstractEndpoint::decrementSelectedCount);
-
-            // Any endpoints in the newSelectedEndpoints list which AREN'T
-            // in the oldSelectedEndpoints list should have their count incremented
-            newSelectedEndpoints.stream()
-                .filter(
-                    newSelectedEp -> !oldSelectedEndpoints.contains(newSelectedEp))
-                .map(this::getEndpoint)
-                .filter(Objects::nonNull)
-                .forEach(AbstractEndpoint::incrementSelectedCount);
-        }
     }
 
     /**
@@ -962,11 +939,7 @@ public class Conference
         if (removedEndpoint != null)
         {
             updateEndpointsCache();
-            endpoints.values()
-                    .forEach(e -> {
-                        e.removePinnedEndpoint(endpoint.getID());
-                        e.removeSelectedEndpoint(endpoint.getID());
-                    });
+            endpoints.values().forEach(e -> e.removePinnedEndpoint(endpoint.getID()));
         } else {
             logger.warn("Trying to expire unknown endpoint id=" + id);
         }
@@ -1010,10 +983,7 @@ public class Conference
                 replacedEndpoint + " has been replaced by new " +
                 "endpoint with same id: " + endpoint);
             endpoints.values()
-                    .forEach(e -> {
-                        e.removePinnedEndpoint(endpoint.getID());
-                        e.removeSelectedEndpoint(endpoint.getID());
-                    });
+                    .forEach(e -> e.removePinnedEndpoint(endpoint.getID()));
         }
     }
 

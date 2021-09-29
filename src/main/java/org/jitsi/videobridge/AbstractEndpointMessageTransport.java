@@ -109,12 +109,6 @@ public abstract class AbstractEndpointMessageTransport
         TaskPools.IO_POOL.submit(() -> {
             switch (colibriClass)
             {
-                case COLIBRI_CLASS_SELECTED_ENDPOINT_CHANGED:
-                    onSelectedEndpointChangedEvent(src, jsonObject);
-                    break;
-                case COLIBRI_CLASS_SELECTED_ENDPOINTS_CHANGED:
-                    onSelectedEndpointsChangedEvent(src, jsonObject);
-                    break;
                 case COLIBRI_CLASS_PINNED_ENDPOINT_CHANGED:
                     onPinnedEndpointChangedEvent(src, jsonObject);
                     break;
@@ -131,9 +125,6 @@ public abstract class AbstractEndpointMessageTransport
                     break;
                 case COLIBRI_CLASS_ENDPOINT_MESSAGE:
                     onClientEndpointMessage(src, jsonObject);
-                    break;
-                case COLIBRI_CLASS_LASTN_CHANGED:
-                    onLastNChangedEvent(src, jsonObject);
                     break;
                 case COLIBRI_CLASS_RECEIVER_VIDEO_CONSTRAINT:
                     onReceiverVideoConstraintEvent(src, jsonObject);
@@ -356,58 +347,6 @@ public abstract class AbstractEndpointMessageTransport
         onPinnedEndpointsChangedEvent(jsonObject, newPinnedEndpoints);
     }
 
-    /**
-     * Notifies this {@code Endpoint} that a {@code SelectedEndpointChangedEvent}
-     * has been received.
-     *
-     * @param src the transport channel by which {@code jsonObject} has
-     * been received.
-     * @param jsonObject the JSON object with {@link Videobridge#COLIBRI_CLASS}
-     * {@code SelectedEndpointChangedEvent} which has been received.
-     */
-    protected void onSelectedEndpointChangedEvent(
-        @SuppressWarnings("unused") Object src,
-        JSONObject jsonObject)
-    {
-        // Find the new pinned endpoint.
-        String newSelectedEndpointID
-            = (String) jsonObject.get("selectedEndpoint");
-
-        Set<String> newSelectedIDs = Collections.emptySet();
-        if (newSelectedEndpointID != null && !"".equals(newSelectedEndpointID))
-        {
-            newSelectedIDs = Collections.singleton(newSelectedEndpointID);
-        }
-
-        onSelectedEndpointsChangedEvent(jsonObject, newSelectedIDs);
-    }
-
-    /**
-     * Notifies this {@code Endpoint} that a
-     * {@code SelectedEndpointsChangedEvent} has been received.
-     *
-     * @param src the transport channel by which {@code jsonObject} has
-     * been received
-     * @param jsonObject the JSON object with {@link Videobridge#COLIBRI_CLASS}
-     * {@code SelectedEndpointChangedEvent} which has been received.
-     */
-    protected void onSelectedEndpointsChangedEvent(
-        @SuppressWarnings("unused") Object src,
-        JSONObject jsonObject)
-    {
-        // Find the new pinned endpoint.
-        Object o = jsonObject.get("selectedEndpoints");
-        if (!(o instanceof JSONArray))
-        {
-            logger.warn("Received invalid or unexpected JSON: " + jsonObject);
-            return;
-        }
-
-        JSONArray jsonArray = (JSONArray) o;
-        Set<String> newSelectedEndpoints = filterStringsToSet(jsonArray);
-        onSelectedEndpointsChangedEvent(jsonObject, newSelectedEndpoints);
-    }
-
     private Set<String> filterStringsToSet(JSONArray jsonArray)
     {
         Set<String> strings = new HashSet<>();
@@ -445,53 +384,13 @@ public abstract class AbstractEndpointMessageTransport
     );
 
     /**
-     * Notifies local or remote endpoints that a selected event has been received.
-     * If it is a local endpoint that has received the message, then this method
-     * propagates the message to all proxies of the local endpoint.
-     *
-     * @param jsonObject the JSON object with {@link Videobridge#COLIBRI_CLASS}
-     * {@code SelectedEndpointChangedEvent} which has been received.
-     * @param newSelectedEndpoints the new selected endpoints
-     */
-    protected abstract void onSelectedEndpointsChangedEvent(
-        JSONObject jsonObject,
-        Set<String> newSelectedEndpoints);
-
-    /**
-     * Notifies this {@code Endpoint} that a {@code LastNChangedEvent}
-     * has been received.
-     *
-     * @param src the transport channel by which {@code jsonObject} has been
-     * received.
-     * @param jsonObject the JSON object with {@link Videobridge#COLIBRI_CLASS}
-     * {@code LastNChangedEvent} which has been received.
-     */
-    protected void onLastNChangedEvent(
-        Object src,
-        JSONObject jsonObject)
-    {
-        // Find the new value for LastN.
-        Object o = jsonObject.get("lastN");
-        if (!(o instanceof Number))
-        {
-            return;
-        }
-        int lastN = ((Number) o).intValue();
-
-        if (endpoint != null)
-        {
-            endpoint.setLastN(lastN);
-        }
-    }
-
-    /**
      * Notifies this {@code Endpoint} that a {@code ReceiverVideoConstraint}
      * event has been received
      *
      * @param src the transport channel by which {@code jsonObject} has been
      * received.
      * @param jsonObject the JSON object with {@link Videobridge#COLIBRI_CLASS}
-     * {@code LastNChangedEvent} which has been received.
+     * {@code ReceiverVideoConstraintEvent} which has been received.
      */
     protected void onReceiverVideoConstraintEvent(
         Object src,
@@ -520,27 +419,27 @@ public abstract class AbstractEndpointMessageTransport
                 endpoint.setMaxReceiveFrameHeightPx(maxFrameHeight);
             }
         }
-        o = jsonObject.get("maxFrameRate");
+        o = jsonObject.get("maxFrameTemporalLayerId");
         if (o != null)
         {
             if (!(o instanceof Number))
             {
                 logger.warn(
-                        "Received a non-number maxFrameRate video constraint from "
+                        "Received a non-number maxFrameTemporalLayerId video constraint from "
                                 + getId() + ": " + o);
                 return;
             }
-            double maxFrameRate = ((Number) o).doubleValue();
+            int maxFrameTemporalLayerId = ((Number) o).intValue();
             if (logger.isDebugEnabled())
             {
                 logger.debug(
-                        "Received a maxFrameRate video constraint from "
-                                + getId() + ": " + maxFrameRate);
+                        "Received a maxFrameTemporalLayerId video constraint from "
+                                + getId() + ": " + maxFrameTemporalLayerId);
             }
 
             if (endpoint != null)
             {
-                endpoint.setMaxReceiveFrameRateFps(maxFrameRate);
+                endpoint.setMaxReceiveFrameTemporalLayerId(maxFrameTemporalLayerId);
             }
         }
     }

@@ -163,11 +163,6 @@ public class Endpoint
     private final EndpointMessageTransport messageTransport;
 
     /**
-     * A count of how many endpoints have 'selected' this endpoint
-     */
-    private final AtomicInteger selectedCount = new AtomicInteger(0);
-
-    /**
      * The diagnostic context of this instance.
      */
     private final DiagnosticContext diagnosticContext;
@@ -496,11 +491,7 @@ public class Endpoint
     @SuppressWarnings("unchecked")
     public void propertyChange(PropertyChangeEvent evt)
     {
-        if (SELECTED_ENDPOINTS_PROPERTY_NAME.equals(evt.getPropertyName()))
-        {
-            bitrateController.setSelectedEndpointIds((Set<String>) evt.getNewValue());
-        }
-        else if (PINNED_ENDPOINTS_PROPERTY_NAME.equals(evt.getPropertyName()))
+        if (PINNED_ENDPOINTS_PROPERTY_NAME.equals(evt.getPropertyName()))
         {
             bitrateController.setPinnedEndpointIds((Set<String>) evt.getNewValue());
         }
@@ -535,23 +526,6 @@ public class Endpoint
      * {@inheritDoc}
      */
     @Override
-    public void setLastN(Integer lastN)
-    {
-        bitrateController.setLastN(lastN);
-    }
-
-    /**
-     * Gets the LastN value for this endpoint.
-     */
-    public int getLastN()
-    {
-        return bitrateController.getLastN();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public void setMaxReceiveFrameHeightPx(int maxReceiveFrameHeightPx)
     {
         super.setMaxReceiveFrameHeightPx(maxReceiveFrameHeightPx);
@@ -559,9 +533,9 @@ public class Endpoint
     }
 
     @Override
-    public void setMaxReceiveFrameRateFps(double maxReceiveFrameRateFps) {
-        super.setMaxReceiveFrameRateFps(maxReceiveFrameRateFps);
-        bitrateController.setMaxRxFrameRateFps(maxReceiveFrameRateFps);
+    public void setMaxReceiveFrameTemporalLayerId(int maxReceiveFrameTemporalLayerId) {
+        super.setMaxReceiveFrameTemporalLayerId(maxReceiveFrameTemporalLayerId);
+        bitrateController.setMaxRxFrameTemporalLayerId(maxReceiveFrameTemporalLayerId);
     }
 
     private Long localAudioSsrc;
@@ -1117,73 +1091,6 @@ public class Endpoint
     }
 
     /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void incrementSelectedCount()
-    {
-        int newValue = selectedCount.incrementAndGet();
-        if (newValue == 1)
-        {
-            String selectedUpdate = createSelectedUpdateMessage(true);
-            if (logger.isDebugEnabled())
-            {
-                logger.debug("Is now selected, sending message: " + selectedUpdate);
-            }
-            sendMessage(selectedUpdate);
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void decrementSelectedCount()
-    {
-        int newValue = selectedCount.decrementAndGet();
-        if (newValue == 0)
-        {
-            String selectedUpdate = createSelectedUpdateMessage(false);
-            if (logger.isDebugEnabled())
-            {
-                logger.debug("Is no longer selected, sending message: " +
-                        selectedUpdate);
-            }
-            sendMessage(selectedUpdate);
-        }
-    }
-
-    /**
-     * Sends a message to this {@link Endpoint} in order to notify it that the
-     * list/set of {@code lastN} has changed.
-     *
-     * @param forwardedEndpoints the collection of forwarded endpoints.
-     * @param endpointsEnteringLastN the <tt>Endpoint</tt>s which are entering
-     * the list of <tt>Endpoint</tt>s defined by <tt>lastN</tt>
-     * @param conferenceEndpoints the collection of all endpoints in the
-     * conference.
-     */
-    public void sendLastNEndpointsChangeEvent(
-        Collection<String> forwardedEndpoints,
-        Collection<String> endpointsEnteringLastN,
-        Collection<String> conferenceEndpoints)
-    {
-        // We want endpointsEnteringLastN to always to reported. Consequently,
-        // we will pretend that all lastNEndpoints are entering if no explicit
-        // endpointsEnteringLastN is specified.
-        // XXX do we really want that?
-        if (endpointsEnteringLastN == null)
-        {
-            endpointsEnteringLastN = forwardedEndpoints;
-        }
-
-        String msg = createLastNEndpointsChangeEvent(
-            forwardedEndpoints, endpointsEnteringLastN, conferenceEndpoints);
-
-        sendMessage(msg);
-    }
-
-    /**
      * Sets the remote transport information (ICE candidates, DTLS fingerprints).
      *
      * @param transportInfo the XML extension which contains the remote
@@ -1655,7 +1562,6 @@ public class Endpoint
     {
         JSONObject debugState = super.getDebugState();
 
-        debugState.put("selectedCount", selectedCount.get());
         //debugState.put("sctpManager", sctpManager.getDebugState());
         //debugState.put("messageTransport", messageTransport.getDebugState());
         debugState.put("bitrateController", bitrateController.getDebugState());

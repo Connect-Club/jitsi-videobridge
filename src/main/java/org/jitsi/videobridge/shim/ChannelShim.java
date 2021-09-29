@@ -210,18 +210,6 @@ public class ChannelShim
     }
 
     /**
-     * Sets the {@code lastN} value for this channel.
-     * @param lastN the value to set.
-     */
-    public void setLastN(Integer lastN)
-    {
-        // Since only a single channel (the video channel) should have the
-        // lastN value set, we don't worry about overriding the singular lastN
-        // value on the endpoint
-        endpoint.setLastN(lastN);
-    }
-
-    /**
      * Describes this channel in an IQ.
      */
     public void describe(ColibriConferenceIQ.ChannelCommon commonIq)
@@ -238,7 +226,6 @@ public class ChannelShim
             ColibriConferenceIQ.Channel iq
                     = (ColibriConferenceIQ.Channel) commonIq;
             iq.setRTPLevelRelayType(RTPLevelRelayType.TRANSLATOR);
-            iq.setLastN(endpoint.getLastN());
             iq.setDirection(direction);
 
             if (localSsrc != -1)

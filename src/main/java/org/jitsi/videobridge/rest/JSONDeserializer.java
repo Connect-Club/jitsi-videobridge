@@ -178,8 +178,6 @@ public final class JSONDeserializer
 
             Object direction
                     = channel.get(ColibriConferenceIQ.Channel.DIRECTION_ATTR_NAME);
-            Object lastN
-                    = channel.get(ColibriConferenceIQ.Channel.LAST_N_ATTR_NAME);
             Object receivingSimulcastStream
                     = channel.get(
                     ColibriConferenceIQ.Channel.RECEIVING_SIMULCAST_LAYER);
@@ -199,11 +197,6 @@ public final class JSONDeserializer
             if (direction != null)
             {
                 channelIQ.setDirection(direction.toString());
-            }
-            // lastN
-            if (lastN != null)
-            {
-                channelIQ.setLastN(objectToInteger(lastN));
             }
             // receivingSimulcastStream
             if (receivingSimulcastStream != null)

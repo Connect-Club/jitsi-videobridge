@@ -67,41 +67,4 @@ public class EndpointMessageBuilderTest
                      json.get("active"));
     }
 
-    @Test
-    public void testLastNEndpointsChangeEvent()
-        throws Exception
-    {
-        String[] forwardedEndpoints = new String[]{"a", "b", "c"};
-        String[] endpointsEnteringLastN = new String[]{"b", "c"};
-        String[] conferenceEndpoints = new String[]{"a", "b", "c", "d"};
-
-        String str
-            = createLastNEndpointsChangeEvent(
-                Arrays.asList(forwardedEndpoints),
-                Arrays.asList(endpointsEnteringLastN),
-                Arrays.asList(conferenceEndpoints));
-
-        JSONObject json = (JSONObject) new JSONParser().parse(str);
-        assertEquals(COLIBRI_CLASS_LASTN_ENDPOINTS_CHANGED,
-                     json.get(Videobridge.COLIBRI_CLASS));
-
-        JSONArray forwardedEndpointsJson = (JSONArray) json.get("lastNEndpoints");
-        JSONArray endpointsEnteringLastNJson
-            = (JSONArray) json.get("endpointsEnteringLastN");
-        JSONArray conferenceEndpointsJson
-            = (JSONArray) json.get("conferenceEndpoints");
-
-        assertTrue(
-            Arrays.equals(
-                forwardedEndpointsJson.toArray(),
-                forwardedEndpoints));
-        assertTrue(
-            Arrays.equals(
-                endpointsEnteringLastNJson.toArray(),
-                endpointsEnteringLastN));
-        assertTrue(
-            Arrays.equals(
-                conferenceEndpointsJson.toArray(),
-                conferenceEndpoints));
-    }
 }

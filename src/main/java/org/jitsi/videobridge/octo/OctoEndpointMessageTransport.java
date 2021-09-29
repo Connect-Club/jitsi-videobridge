@@ -107,26 +107,6 @@ class OctoEndpointMessageTransport
 
     /**
      * {@inheritDoc}
-     */
-    @Override
-    protected void onSelectedEndpointsChangedEvent(
-        JSONObject jsonObject, Set<String> newSelectedEndpoints)
-    {
-        // This is a message from a remote bridge for a remote endpoint.
-        String targetEndpointId
-            = (String) jsonObject.get(PROP_TARGET_OCTO_ENDPOINT_ID);
-
-        AbstractEndpoint targetEndpoint
-            = getConference().getEndpoint(targetEndpointId);
-
-        if (targetEndpoint != null)
-        {
-            targetEndpoint.selectedEndpointsChanged(newSelectedEndpoints);
-        }
-    }
-
-    /**
-     * {@inheritDoc}
      * </p>
      * We don't expect any of these messages to go through Octo, so we log a
      * warning.
@@ -147,20 +127,6 @@ class OctoEndpointMessageTransport
     protected void onReceiverVideoConstraintEvent(
         Object src,
         JSONObject jsonObject)
-    {
-        logUnexpectedMessage(jsonObject.toJSONString());
-    }
-
-    /**
-     * {@inheritDoc}
-     * </p>
-     * We don't expect any of these messages to go through Octo, so we log a
-     * warning.
-     */
-    @Override
-    protected void onLastNChangedEvent(
-            Object src,
-            JSONObject jsonObject)
     {
         logUnexpectedMessage(jsonObject.toJSONString());
     }

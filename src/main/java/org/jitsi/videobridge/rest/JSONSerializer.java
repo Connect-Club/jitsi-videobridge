@@ -229,7 +229,6 @@ public final class JSONSerializer
         else
         {
             String direction = channel.getDirection();
-            Integer lastN = channel.getLastN();
             List<PayloadTypePacketExtension> payloadTypes
                 = channel.getPayloadTypes();
             Integer receivingSimulcastStream
@@ -254,15 +253,8 @@ public final class JSONSerializer
                         ColibriConferenceIQ.Channel.DIRECTION_ATTR_NAME,
                         direction);
             }
-            // lastN
-            if (lastN != null)
-            {
-                jsonObject.put(
-                        ColibriConferenceIQ.Channel.LAST_N_ATTR_NAME,
-                        lastN);
-            }
             // receiving simulcast layer
-            if (lastN != null)
+            if (receivingSimulcastStream != null)
             {
                 jsonObject.put(
                         ColibriConferenceIQ.Channel.RECEIVING_SIMULCAST_LAYER,
