@@ -939,7 +939,7 @@ public class Conference
         if (removedEndpoint != null)
         {
             updateEndpointsCache();
-            endpoints.values().forEach(e -> e.removePinnedEndpoint(endpoint.getID()));
+            endpoints.values().forEach(e -> e.removeSubscribedEndpoint(endpoint.getID()));
         } else {
             logger.warn("Trying to expire unknown endpoint id=" + id);
         }
@@ -983,7 +983,7 @@ public class Conference
                 replacedEndpoint + " has been replaced by new " +
                 "endpoint with same id: " + endpoint);
             endpoints.values()
-                    .forEach(e -> e.removePinnedEndpoint(endpoint.getID()));
+                    .forEach(e -> e.removeSubscribedEndpoint(endpoint.getID()));
         }
     }
 

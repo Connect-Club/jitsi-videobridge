@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
 import java.util.concurrent.atomic.*;
 
 import static org.jitsi.videobridge.cc.config.BitrateControllerConfig.*;
+import static org.jitsi.videobridge.xmpp.MediaStreamTrackFactory.VP8_SIMULCAST_BASE_LAYER_HEIGHT;
 
 /**
  * The {@link BitrateController} is attached to a destination {@link
@@ -159,19 +160,10 @@ public class BitrateController
             = Collections.emptyList();
 
     /**
-     * The maximum frame height, in pixels, the endpoint with which this
-     * {@link BitrateController} is willing to receive.  -1 means there
-     * is no maximum.
-     */
-    private int maxRxFrameHeightPx = -1;
-
-    private int maxRxFrameTemporalLayerId = -1;
-
-    /**
-     * The IDs of the endpoints which have been pinned by the endpoint to which
+     * The IDs of the endpoints which have been subscribed by the endpoint to which
      * this {@link BitrateController} belongs.
      */
-    private Set<String> pinnedEndpointIds = Collections.emptySet();
+    private Map<String, EndpointVideoConstraint> subscribedEndpointIds = Collections.emptyMap();
 
     /**
      * The ID of the endpoint to which this {@link BitrateController} belongs
@@ -266,7 +258,7 @@ public class BitrateController
     public boolean accept(@NotNull PacketInfo packetInfo)
     {
         if(packetInfo.getPacket() instanceof AudioRtpPacket) {
-            return pinnedEndpointIds.contains(packetInfo.getEndpointId());
+            return subscribedEndpointIds.containsKey(packetInfo.getEndpointId());
         }
 
         VideoRtpPacket videoRtpPacket = packetInfo.packetAs();
@@ -346,8 +338,7 @@ public class BitrateController
         JSONObject debugState = new JSONObject();
         debugState.put("trustBwe", Config.trustBwe());
         debugState.put("lastBwe", lastBwe);
-        debugState.put("maxRxFrameHeightPx", maxRxFrameHeightPx);
-        debugState.put("pinnedEndpointIds", pinnedEndpointIds.toString());
+        debugState.put("subscribedEndpointIds", subscribedEndpointIds.toString());
         debugState.put("supportsRtx", supportsRtx);
         JSONObject adaptiveTrackProjectionsJson = new JSONObject();
         for (Map.Entry<Long, AdaptiveTrackProjection> entry
@@ -833,13 +824,13 @@ public class BitrateController
             logger.debug("Prioritizing endpoints" +
                 ", sorted endpoint list: " +
                 conferenceEndpoints.stream().map(AbstractEndpoint::getID).collect(Collectors.joining(", ")) +
-                ". Pinned endpoints: " + String.join(", ", pinnedEndpointIds));
+                ". Subscribed endpoints: " + String.join(", ", subscribedEndpointIds.keySet()));
         }
 
         int endpointPriority = 0;
 
         // Then, bubble-up the pinned endpoints.
-        if (!pinnedEndpointIds.isEmpty())
+        if (!subscribedEndpointIds.isEmpty())
         {
             for (Iterator<AbstractEndpoint> it = conferenceEndpoints.iterator();
                  it.hasNext();)
@@ -847,10 +838,15 @@ public class BitrateController
                 AbstractEndpoint sourceEndpoint = it.next();
                 if (sourceEndpoint.isExpired()
                     || sourceEndpoint.getID().equals(destinationEndpoint.getID())
-                    || !pinnedEndpointIds.contains(sourceEndpoint.getID()))
+                    || !subscribedEndpointIds.containsKey(sourceEndpoint.getID()))
                 {
                     logger.trace(() -> "Endpoint " + sourceEndpoint.getID() + " is expired, is this destination, or " +
                         "is not pinned; ignoring");
+                    continue;
+                }
+
+                EndpointVideoConstraint videoConstraint = subscribedEndpointIds.get(sourceEndpoint.getID());
+                if (videoConstraint.isOffVideo()) {
                     continue;
                 }
 
@@ -865,8 +861,8 @@ public class BitrateController
                             endpointPriority, new TrackBitrateAllocation(
                                 sourceEndpoint,
                                 track,
-                                maxRxFrameHeightPx,
-                                maxRxFrameTemporalLayerId));
+                                videoConstraint.isLowRes() ? VP8_SIMULCAST_BASE_LAYER_HEIGHT : -1,
+                                videoConstraint.isLowFps() ? 0 : -1));
                     }
 
                     logger.trace(() -> "Adding pinned endpoint " + sourceEndpoint.getID() + " to allocations");
@@ -881,47 +877,16 @@ public class BitrateController
     }
 
     /**
-     * Set the max receive frame height, in pixels, the endpoint to which this
-     * {@link BitrateController} belongs is willing to receive
-     * @param maxRxFrameHeightPx the max frame height, in pixels
-     */
-    public void setMaxRxFrameHeightPx(int maxRxFrameHeightPx)
-    {
-        if (this.maxRxFrameHeightPx != maxRxFrameHeightPx)
-        {
-            this.maxRxFrameHeightPx = maxRxFrameHeightPx;
-
-            logger.debug(() -> "setting max receive frame height to " +
-                    + maxRxFrameHeightPx + "px, updating");
-
-            update();
-        }
-    }
-
-    public void setMaxRxFrameTemporalLayerId(int maxRxFrameTemporalLayerId)
-    {
-        if (this.maxRxFrameTemporalLayerId != maxRxFrameTemporalLayerId)
-        {
-            this.maxRxFrameTemporalLayerId = maxRxFrameTemporalLayerId;
-
-            logger.debug(() -> "setting max receive frame temporal layer id to " +
-                    + maxRxFrameTemporalLayerId + "fps, updating");
-
-            update();
-        }
-    }
-
-    /**
      * Set the endpoint IDs the endpoint to which this
      * {@link BitrateController} belongs has pinned
-     * @param pinnedEndpointIds the endpoint IDs the endpoint to which this
+     * @param subscribedEndpointIds the endpoint IDs the endpoint to which this
      *                            {@link BitrateController} belongs has pinned
      */
-    public void setPinnedEndpointIds(Set<String> pinnedEndpointIds)
+    public void setSubscribedEndpointIds(Map<String, EndpointVideoConstraint> subscribedEndpointIds)
     {
-        if (!this.pinnedEndpointIds.equals(pinnedEndpointIds))
+        if (!this.subscribedEndpointIds.equals(subscribedEndpointIds))
         {
-            this.pinnedEndpointIds = new HashSet<>(pinnedEndpointIds);
+            this.subscribedEndpointIds = new HashMap<>(subscribedEndpointIds);
             update();
         }
     }

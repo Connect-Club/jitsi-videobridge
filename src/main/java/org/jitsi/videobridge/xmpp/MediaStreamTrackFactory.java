@@ -68,7 +68,7 @@ public class MediaStreamTrackFactory
      * FIXME: hardcoded ugh.. this should be either signaled or somehow included
      * in the RTP stream.
      */
-    private static final int VP8_SIMULCAST_BASE_LAYER_HEIGHT = 180;
+    public static final int VP8_SIMULCAST_BASE_LAYER_HEIGHT = 180;
 
     /**
      * The default number of spatial layers to use for VP9 SVC.

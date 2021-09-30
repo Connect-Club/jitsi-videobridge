@@ -120,14 +120,15 @@ public abstract class AbstractEndpointMessageTransport
                     break;
                 case COLIBRI_CLASS_SUBSCRIPTION_TYPE_CHANGED:
                     onSubscriptionTypeChangedEvent(src, jsonObject);
+                    break;
+                case COLIBRI_CLASS_SUBSCRIBED_ENDPOINTS_CHANGED:
+                    onSubscribedEndpointsChangedEvent(src, jsonObject);
+                    break;
                 case COLIBRI_CLASS_CLIENT_HELLO:
                     onClientHello(src, jsonObject);
                     break;
                 case COLIBRI_CLASS_ENDPOINT_MESSAGE:
                     onClientEndpointMessage(src, jsonObject);
-                    break;
-                case COLIBRI_CLASS_RECEIVER_VIDEO_CONSTRAINT:
-                    onReceiverVideoConstraintEvent(src, jsonObject);
                     break;
                 default:
                     logger.info(
@@ -315,6 +316,38 @@ public abstract class AbstractEndpointMessageTransport
         onSubscriptionTypeChangedEvent(jsonObject, EndpointSubscriptionType.valueOf(o.toString()));
     }
 
+    protected void onSubscribedEndpointsChangedEvent(
+            @SuppressWarnings("unused") Object src,
+            JSONObject jsonObject
+    ) {
+        // Find the new subscribed endpoints.
+        Object o = jsonObject.get("subscribedEndpointsUUID");
+        if (!(o instanceof JSONObject))
+        {
+            logger.warn("Received invalid or unexpected JSON: " + jsonObject);
+            return;
+        }
+        Map<UUID,EndpointVideoConstraint> subscribedEndpointsUUID = new HashMap<>();
+        JSONObject jsObject = (JSONObject) o;
+        for(Object endpointUUID : jsObject.keySet()) {
+            Object videoConstraint = jsObject.get(endpointUUID);
+            if (!(videoConstraint instanceof JSONObject))
+            {
+                logger.warn("Received invalid or unexpected JSON: " + jsonObject);
+                return;
+            }
+            JSONObject jsonVideoConstraint = (JSONObject) videoConstraint;
+            boolean offVideo = (boolean) jsonVideoConstraint.get("offVideo");
+            boolean lowRes = (boolean) jsonVideoConstraint.get("lowRes");
+            boolean lowFps = (boolean) jsonVideoConstraint.get("lowFps");
+            subscribedEndpointsUUID.put(
+                    UUID.fromString(endpointUUID.toString()),
+                    new EndpointVideoConstraint(offVideo, lowRes, lowFps)
+            );
+        }
+        onSubscribedEndpointsUUIDChangedEvent(jsonObject, subscribedEndpointsUUID);
+    }
+
     /**
      * Notifies this {@code Endpoint} that a {@code PinnedEndpointsChangedEvent}
      * has been received.
@@ -383,66 +416,10 @@ public abstract class AbstractEndpointMessageTransport
             EndpointSubscriptionType subscriptionType
     );
 
-    /**
-     * Notifies this {@code Endpoint} that a {@code ReceiverVideoConstraint}
-     * event has been received
-     *
-     * @param src the transport channel by which {@code jsonObject} has been
-     * received.
-     * @param jsonObject the JSON object with {@link Videobridge#COLIBRI_CLASS}
-     * {@code ReceiverVideoConstraintEvent} which has been received.
-     */
-    protected void onReceiverVideoConstraintEvent(
-        Object src,
-        JSONObject jsonObject)
-    {
-        Object o = jsonObject.get("maxFrameHeight");
-        if (o != null)
-        {
-            if (!(o instanceof Number))
-            {
-                logger.warn(
-                        "Received a non-number maxFrameHeight video constraint from "
-                                + getId() + ": " + o);
-                return;
-            }
-            int maxFrameHeight = ((Number) o).intValue();
-            if (logger.isDebugEnabled())
-            {
-                logger.debug(
-                        "Received a maxFrameHeight video constraint from "
-                                + getId() + ": " + maxFrameHeight);
-            }
-
-            if (endpoint != null)
-            {
-                endpoint.setMaxReceiveFrameHeightPx(maxFrameHeight);
-            }
-        }
-        o = jsonObject.get("maxFrameTemporalLayerId");
-        if (o != null)
-        {
-            if (!(o instanceof Number))
-            {
-                logger.warn(
-                        "Received a non-number maxFrameTemporalLayerId video constraint from "
-                                + getId() + ": " + o);
-                return;
-            }
-            int maxFrameTemporalLayerId = ((Number) o).intValue();
-            if (logger.isDebugEnabled())
-            {
-                logger.debug(
-                        "Received a maxFrameTemporalLayerId video constraint from "
-                                + getId() + ": " + maxFrameTemporalLayerId);
-            }
-
-            if (endpoint != null)
-            {
-                endpoint.setMaxReceiveFrameTemporalLayerId(maxFrameTemporalLayerId);
-            }
-        }
-    }
+    protected abstract void onSubscribedEndpointsUUIDChangedEvent(
+            JSONObject jsonObject,
+            Map<UUID,EndpointVideoConstraint> newSubscribedEndpointsUUID
+    );
 
     /**
      * Notifies this {@link EndpointMessageTransport} that a specific message

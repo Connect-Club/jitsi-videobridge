@@ -491,9 +491,9 @@ public class Endpoint
     @SuppressWarnings("unchecked")
     public void propertyChange(PropertyChangeEvent evt)
     {
-        if (PINNED_ENDPOINTS_PROPERTY_NAME.equals(evt.getPropertyName()))
+        if (SUBSCRIBED_ENDPOINTS_PROPERTY_NAME.equals(evt.getPropertyName()))
         {
-            bitrateController.setPinnedEndpointIds((Set<String>) evt.getNewValue());
+            bitrateController.setSubscribedEndpointIds((Map<String, EndpointVideoConstraint>) evt.getNewValue());
         }
     }
 
@@ -520,22 +520,6 @@ public class Endpoint
         {
             messageTransport.sendMessage(msg);
         }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void setMaxReceiveFrameHeightPx(int maxReceiveFrameHeightPx)
-    {
-        super.setMaxReceiveFrameHeightPx(maxReceiveFrameHeightPx);
-        bitrateController.setMaxRxFrameHeightPx(maxReceiveFrameHeightPx);
-    }
-
-    @Override
-    public void setMaxReceiveFrameTemporalLayerId(int maxReceiveFrameTemporalLayerId) {
-        super.setMaxReceiveFrameTemporalLayerId(maxReceiveFrameTemporalLayerId);
-        bitrateController.setMaxRxFrameTemporalLayerId(maxReceiveFrameTemporalLayerId);
     }
 
     private Long localAudioSsrc;

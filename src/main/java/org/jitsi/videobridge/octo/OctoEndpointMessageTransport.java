@@ -17,7 +17,6 @@ package org.jitsi.videobridge.octo;
 
 import org.jitsi.utils.logging2.*;
 import org.jitsi.videobridge.*;
-import org.jitsi.videobridge.websocket.*;
 import org.json.simple.*;
 
 import java.util.*;
@@ -76,33 +75,50 @@ class OctoEndpointMessageTransport
     protected void onPinnedEndpointsChangedEvent(
         JSONObject jsonObject, Set<String> newPinnedEndpoints)
     {
-        // This is a message from a remote bridge for a remote endpoint.
-        String targetEndpointId
-            = (String) jsonObject.get(PROP_TARGET_OCTO_ENDPOINT_ID);
-
-        AbstractEndpoint targetEndpoint
-            = getConference().getEndpoint(targetEndpointId);
-
-        if (targetEndpoint != null)
-        {
-            targetEndpoint.pinnedEndpointsChanged(newPinnedEndpoints);
-        }
+        onSubscribedEndpointsChangedEvent(
+                jsonObject,
+                newPinnedEndpoints.stream()
+                        .collect(Collectors.toMap(x->x, x->new EndpointVideoConstraint(false, false, false)))
+        );
     }
 
     @Override
     protected void onPinnedUUIDEndpointsChangedEvent(JSONObject jsonObject, Set<UUID> newPinnedUUIDEndpoints) {
-        Set<String> newPinnedEndpoints = getConference().getEndpoints().stream()
-                .filter(x -> x instanceof Endpoint)
-                .map(x -> (Endpoint)x)
-                .filter(x -> newPinnedUUIDEndpoints.contains(x.getUuid()))
-                .map(AbstractEndpoint::getID)
-                .collect(Collectors.toSet());
-        onPinnedEndpointsChangedEvent(jsonObject, newPinnedEndpoints);
+        onSubscribedEndpointsUUIDChangedEvent(
+                jsonObject,
+                newPinnedUUIDEndpoints.stream()
+                        .collect(Collectors.toMap(x->x, x->new EndpointVideoConstraint(false, false, false)))
+        );
     }
 
     @Override
     protected void onSubscriptionTypeChangedEvent(JSONObject jsonObject, EndpointSubscriptionType subscriptionType) {
         logUnexpectedMessage(jsonObject.toJSONString());
+    }
+
+    @Override
+    protected void onSubscribedEndpointsUUIDChangedEvent(JSONObject jsonObject, Map<UUID, EndpointVideoConstraint> newSubscribedEndpointsUUID) {
+        Map<String, EndpointVideoConstraint> newSubscribedEndpoints = getConference().getEndpoints().stream()
+                .filter(x -> newSubscribedEndpointsUUID.containsKey(x.getUuid()))
+                .collect(Collectors.toMap(AbstractEndpoint::getID, x->newSubscribedEndpointsUUID.get(x.getUuid())));
+
+        onSubscribedEndpointsChangedEvent(jsonObject, newSubscribedEndpoints);
+    }
+
+    private void onSubscribedEndpointsChangedEvent(
+            JSONObject jsonObject, Map<String, EndpointVideoConstraint> newSubscribedEndpoints)
+    {
+        // This is a message from a remote bridge for a remote endpoint.
+        String targetEndpointId
+                = (String) jsonObject.get(PROP_TARGET_OCTO_ENDPOINT_ID);
+
+        AbstractEndpoint targetEndpoint
+                = getConference().getEndpoint(targetEndpointId);
+
+        if (targetEndpoint != null)
+        {
+            targetEndpoint.subscribedEndpointsChanged(newSubscribedEndpoints);
+        }
     }
 
     /**
@@ -113,20 +129,6 @@ class OctoEndpointMessageTransport
      */
     @Override
     protected void onClientHello(Object src, JSONObject jsonObject)
-    {
-        logUnexpectedMessage(jsonObject.toJSONString());
-    }
-
-    /**
-     * {@inheritDoc}
-     * </p>
-     * We don't expect any of these messages to go through Octo, so we log a
-     * warning.
-     */
-    @Override
-    protected void onReceiverVideoConstraintEvent(
-        Object src,
-        JSONObject jsonObject)
     {
         logUnexpectedMessage(jsonObject.toJSONString());
     }

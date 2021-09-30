@@ -70,19 +70,8 @@ public class EndpointMessageBuilder
     public static final String COLIBRI_CLASS_SUBSCRIPTION_TYPE_CHANGED
         = "SubscriptionTypeChangedEvent";
 
-    /**
-     * The {@link Videobridge#COLIBRI_CLASS} value indicating a
-     * {@code ReceiverVideoConstraint} message.
-     */
-    public static final String COLIBRI_CLASS_RECEIVER_VIDEO_CONSTRAINT
-        = "ReceiverVideoConstraint";
-
-    /**
-     * The {@link Videobridge#COLIBRI_CLASS} value indicating a
-     * {@code SelectedUpdateEvent}.
-     */
-    public static final String COLIBRI_CLASS_SELECTED_UPDATE
-        = "SelectedUpdateEvent";
+    public static final String COLIBRI_CLASS_SUBSCRIBED_ENDPOINTS_CHANGED
+        = "SubscribedEndpointsChangedEvent";
 
     /**
      * The {@link Videobridge#COLIBRI_CLASS} value indicating a

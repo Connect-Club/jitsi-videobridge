@@ -51,8 +51,8 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
      * specifies the ID of the currently pinned <tt>Endpoint</tt> of this
      * <tt>Endpoint</tt>.
      */
-    public static final String PINNED_ENDPOINTS_PROPERTY_NAME
-        = Endpoint.class.getName() + ".pinnedEndpoints";
+    public static final String SUBSCRIBED_ENDPOINTS_PROPERTY_NAME
+        = Endpoint.class.getName() + ".subscribedEndpoints";
 
     /**
      * The (unique) identifier/ID of the endpoint of a participant in a
@@ -92,37 +92,37 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
     /**
      * The set of IDs of the pinned endpoints of this {@code Endpoint}.
      */
-    private Set<String> pinnedEndpoints = new HashSet<>();
+    private Map<String, EndpointVideoConstraint> subscribedEndpoints = new HashMap<>();
 
 
     /**
      * Sets the list of pinned endpoints for this endpoint.
-     * @param newPinnedEndpoints the set of pinned endpoints.
+     * @param newSubscribedEndpoints the set of pinned endpoints.
      * @return true if the underlying set of pinned endpoints has changed, false
      * otherwise. The return value was introduced to enable overrides to
      * act upon the underlying set changing.
      */
-    public void pinnedEndpointsChanged(Set<String> newPinnedEndpoints)
+    public void subscribedEndpointsChanged(Map<String, EndpointVideoConstraint> newSubscribedEndpoints)
     {
         // Check if that's different to what we think the pinned endpoints are.
-        Set<String> oldPinnedEndpoints = this.pinnedEndpoints;
-        if (!oldPinnedEndpoints.equals(newPinnedEndpoints))
+        Map<String, EndpointVideoConstraint> oldSubscribedEndpoints = this.subscribedEndpoints;
+        if (!oldSubscribedEndpoints.equals(newSubscribedEndpoints))
         {
-            this.pinnedEndpoints = newPinnedEndpoints;
+            this.subscribedEndpoints = newSubscribedEndpoints;
 
-            logger.debug(() -> "Pinned "
-                + Arrays.toString(pinnedEndpoints.toArray()));
+            logger.debug(() -> "Subscribed "
+                + String.join(",", subscribedEndpoints.keySet()));
 
-            firePropertyChange(PINNED_ENDPOINTS_PROPERTY_NAME,
-                oldPinnedEndpoints, pinnedEndpoints);
+            firePropertyChange(SUBSCRIBED_ENDPOINTS_PROPERTY_NAME,
+                    oldSubscribedEndpoints, subscribedEndpoints);
         }
     }
 
-    public void removePinnedEndpoint(String removedPinnedEndpoint) {
-        Set<String> newPinnedEndpoints = pinnedEndpoints.stream()
-                .filter(x -> !Objects.equals(x, removedPinnedEndpoint))
-                .collect(Collectors.toSet());
-        pinnedEndpointsChanged(newPinnedEndpoints);
+    public void removeSubscribedEndpoint(String removedSubscribedEndpoint) {
+        Map<String, EndpointVideoConstraint> newSubscribedEndpoints = subscribedEndpoints.entrySet().stream()
+                .filter(x -> !Objects.equals(x.getKey(), removedSubscribedEndpoint))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        subscribedEndpointsChanged(newSubscribedEndpoints);
     }
 
 
@@ -144,17 +144,6 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
         logger = parentLogger.createChildLogger(this.getClass().getName(), context);
         timeCreated = Instant.now();
     }
-
-    /**
-     * Set the maximum frame height, in pixels, of video streams that can be
-     * forwarded to this participant.
-     *
-     * @param maxReceiveFrameHeightPx the maximum frame height, in pixels, of
-     * video streams that can be forwarded to this participant.
-     */
-    public void setMaxReceiveFrameHeightPx(int maxReceiveFrameHeightPx) { }
-
-    public void setMaxReceiveFrameTemporalLayerId(int maxReceiveFrameTemporalLayerId) {}
 
     /**
      * Checks whether a specific SSRC belongs to this endpoint.
@@ -367,7 +356,7 @@ public abstract class AbstractEndpoint extends PropertyChangeNotifier
         debugState.put("displayName", displayName);
         debugState.put("expired", expired);
         debugState.put("statsId", statsId);
-        debugState.put("pinnedEndpoints", pinnedEndpoints.toString());
+        debugState.put("subscribedEndpoints", subscribedEndpoints.toString());
 
         return debugState;
     }

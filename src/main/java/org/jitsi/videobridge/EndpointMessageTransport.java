@@ -25,10 +25,7 @@ import org.jitsi.videobridge.websocket.ColibriWebSocket;
 import org.json.simple.JSONObject;
 
 import java.lang.ref.WeakReference;
-import java.util.Collections;
-import java.util.Queue;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
@@ -184,23 +181,45 @@ class EndpointMessageTransport
     protected void onPinnedEndpointsChangedEvent(
         JSONObject jsonObject, Set<String> newPinnedEndpoints)
     {
-        endpoint.pinnedEndpointsChanged(newPinnedEndpoints);
-        propagateJSONObject(jsonObject);
+        onSubscribedEndpointsChangedEvent(
+                jsonObject,
+                newPinnedEndpoints.stream()
+                        .collect(Collectors.toMap(x->x, x->new EndpointVideoConstraint(false, false, false)))
+        );
     }
 
+    @Override
     protected void onPinnedUUIDEndpointsChangedEvent(
             JSONObject jsonObject, Set<UUID> newPinnedUUIDEndpoints
     ) {
-        Set<String> newPinnedEndpoints = getConference().getEndpoints().stream()
-                .filter(x -> newPinnedUUIDEndpoints.contains(x.getUuid()))
-                .map(AbstractEndpoint::getID)
-                .collect(Collectors.toSet());
-        onPinnedEndpointsChangedEvent(jsonObject, newPinnedEndpoints);
+        onSubscribedEndpointsUUIDChangedEvent(
+                jsonObject,
+                newPinnedUUIDEndpoints.stream()
+                        .collect(Collectors.toMap(x->x, x->new EndpointVideoConstraint(false, false, false)))
+        );
     }
 
     @Override
     protected void onSubscriptionTypeChangedEvent(JSONObject jsonObject, EndpointSubscriptionType subscriptionType) {
         endpoint.setSubscriptionType(subscriptionType);
+    }
+
+    @Override
+    protected void onSubscribedEndpointsUUIDChangedEvent(
+            JSONObject jsonObject, Map<UUID, EndpointVideoConstraint> newSubscribedEndpointsUUID)
+    {
+        Map<String, EndpointVideoConstraint> newSubscribedEndpoints = getConference().getEndpoints().stream()
+                .filter(x -> newSubscribedEndpointsUUID.containsKey(x.getUuid()))
+                .collect(Collectors.toMap(AbstractEndpoint::getID, x->newSubscribedEndpointsUUID.get(x.getUuid())));
+
+        onSubscribedEndpointsChangedEvent(jsonObject, newSubscribedEndpoints);
+    }
+
+    private void onSubscribedEndpointsChangedEvent(
+            JSONObject jsonObject, Map<String, EndpointVideoConstraint> newSubscribedEndpoints)
+    {
+        endpoint.subscribedEndpointsChanged(newSubscribedEndpoints);
+        propagateJSONObject(jsonObject);
     }
 
     /**
