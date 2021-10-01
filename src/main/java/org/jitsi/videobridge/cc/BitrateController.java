@@ -257,8 +257,13 @@ public class BitrateController
      */
     public boolean accept(@NotNull PacketInfo packetInfo)
     {
-        if(packetInfo.getPacket() instanceof AudioRtpPacket) {
-            return subscribedEndpointIds.containsKey(packetInfo.getEndpointId());
+        EndpointVideoConstraint videoConstraint = subscribedEndpointIds.get(packetInfo.getEndpointId());
+        if (videoConstraint == null) {
+            return false;
+        } else if (packetInfo.getPacket() instanceof AudioRtpPacket) {
+            return true;
+        } else if (videoConstraint.isOffVideo()) {
+            return false;
         }
 
         VideoRtpPacket videoRtpPacket = packetInfo.packetAs();
