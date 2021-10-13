@@ -28,10 +28,7 @@
         </encoder>
     </appender>
 
-    <root level="WARN">
+    <root level="INFO">
         <appender-ref ref="asyncJsonRollingFileAppender"/>
     </root>
-
-    <logger name="org.ice4j.ice.harvest.AbstractUdpListener" level="INFO"/>
-    <logger name="org.jitsi.videobridge.Endpoint" level="INFO"/>
 </configuration>
