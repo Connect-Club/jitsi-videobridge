@@ -154,7 +154,7 @@ public class VideobridgeShim
                     ssrcToEndpoint.put(sourcee.getSSRC(), channelShim.getEndpoint().getID());
                 }
                 try {
-                    channelShim.getEndpoint().getConference().getAudioMixer().updatePipeline(ssrcToEndpoint);
+                    channelShim.getEndpoint().getConference().getAudioProcessor().updatePipeline(ssrcToEndpoint);
                 } catch (Exception e) {
                     logger.error("Can not update pipeline", e);
                 }

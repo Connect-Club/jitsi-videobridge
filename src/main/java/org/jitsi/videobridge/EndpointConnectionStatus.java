@@ -21,7 +21,6 @@ import org.jitsi.osgi.EventHandlerActivator;
 import org.jitsi.osgi.ServiceUtils2;
 import org.jitsi.utils.logging2.Logger;
 import org.jitsi.utils.logging2.LoggerImpl;
-import org.jitsi.videobridge.octo.OctoEndpoint;
 import org.osgi.framework.BundleContext;
 
 import java.time.Clock;
@@ -30,7 +29,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.jitsi.videobridge.ConfAudioMixerTransport.AUDIO_MIXER_EP_ID;
+import static org.jitsi.videobridge.ConfAudioProcessorTransport.AUDIO_MIXER_EP_ID;
 import static org.jitsi.videobridge.EndpointConnectionStatusConfig.Config;
 import static org.jitsi.videobridge.EndpointMessageBuilder.createEndpointConnectivityStatusChangeEvent;
 

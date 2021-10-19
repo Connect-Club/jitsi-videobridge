@@ -32,7 +32,7 @@ import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.*;
 
-import static org.jitsi.videobridge.ConfAudioMixerTransport.AUDIO_MIXER_EP_ID;
+import static org.jitsi.videobridge.ConfAudioProcessorTransport.AUDIO_MIXER_EP_ID;
 
 /**
  * Handles Colibri-related logic for a {@link Conference}, e.g.
@@ -278,7 +278,7 @@ public class ConferenceShim
     }
 
     public void processMixerAudioChannel(@NotNull ColibriConferenceIQ.Channel mixerAudioChannel) {
-        ConfAudioMixerTransport audioMixer = conference.getAudioMixer();
+        ConfAudioProcessorTransport audioMixer = conference.getAudioProcessor();
 
         int expire = mixerAudioChannel.getExpire();
         if (expire == 0) {

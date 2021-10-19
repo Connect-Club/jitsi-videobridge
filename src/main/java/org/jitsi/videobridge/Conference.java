@@ -207,7 +207,7 @@ public class Conference
      */
     private ConfOctoTransport tentacle;
 
-    private ConfAudioMixerTransport audioMixer;
+    private ConfAudioProcessorTransport audioProcessor;
 
     /**
      * Initializes a new <tt>Conference</tt> instance which is to represent a
@@ -540,9 +540,9 @@ public class Conference
                 tentacle.expire();
                 tentacle = null;
             }
-            if (audioMixer != null) {
-                audioMixer.expire();
-                audioMixer = null;
+            if (audioProcessor != null) {
+                audioProcessor.expire();
+                audioProcessor = null;
             }
 
             if (includeInStatistics)
@@ -1175,12 +1175,12 @@ public class Conference
             prevHandler = tentacle;
         }
 
-        if (audioMixer != null && audioMixer.wants(packetInfo)) {
+        if (audioProcessor != null && audioProcessor.wants(packetInfo)) {
             if (prevHandler != null)
             {
                 prevHandler.send(clonePacketInfo(packetInfo));
             }
-            prevHandler = audioMixer;
+            prevHandler = audioProcessor;
         }
 
         if (prevHandler != null)
@@ -1220,15 +1220,15 @@ public class Conference
         return tentacle != null;
     }
 
-    public ConfAudioMixerTransport getAudioMixer() {
-        if (audioMixer == null) {
+    public ConfAudioProcessorTransport getAudioProcessor() {
+        if (audioProcessor == null) {
             try {
-                audioMixer = new ConfAudioMixerTransport(this);
+                audioProcessor = new ConfAudioProcessorTransport(this);
             } catch (Exception e) {
                 logger.error(e);
             }
         }
-        return audioMixer;
+        return audioProcessor;
     }
 
     /**

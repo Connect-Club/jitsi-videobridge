@@ -23,10 +23,7 @@ import org.jitsi.videobridge.util.TaskPools;
 import org.json.simple.JSONObject;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
+import java.net.*;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,7 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-public class ConfAudioMixerTransport implements PotentialPacketHandler {
+public class ConfAudioProcessorTransport implements PotentialPacketHandler {
 
     public static final String AUDIO_MIXER_EP_ID = "1";
 
@@ -55,26 +52,35 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
 
     private final StreamInformationStore streamInformationStore;
 
-    private final RtpReceiver rtpReceiver;
+    private final RtpReceiver rtpMixerReceiver;
 
     private final UdpTransport udpTransport;
 
-    private InetSocketAddress mixerAddress = null;
+    private InetSocketAddress processorAddress = null;
 
     private final Conference conference;
 
     private final AtomicBoolean running = new AtomicBoolean(true);
 
-    private static HttpUrl.Builder getRtpMixerHttpUrlBuilder(String id) {
+    private static HttpUrl.Builder getRtpProcessorHttpUrlBuilder(String id) {
         return Objects.requireNonNull(HttpUrl.parse(getAudioProcessorPipelineUrl()))
                 .newBuilder()
                 .addPathSegment("pipeline")
                 .addQueryParameter("id", id);
     }
 
-    private int getAudioMixPipelineSrcPort(String id, String sinkHost, int sinkPort, int seqNum) throws IOException {
+    private static class PipelineSrcPort {
+        public final int value;
+        public final boolean created;
+        public PipelineSrcPort(int value, boolean created) {
+            this.value = value;
+            this.created = created;
+        }
+    }
+
+    private PipelineSrcPort getAudioProcessorPipelineSrcPort(String id, String sinkHost, int sinkPort, int seqNum) throws IOException {
         Request request = new Request.Builder()
-                .url(getRtpMixerHttpUrlBuilder(id)
+                .url(getRtpProcessorHttpUrlBuilder(id)
                         .addQueryParameter("sinkHost", sinkHost)
                         .addQueryParameter("sinkPort", Integer.toString(sinkPort))
                         .addQueryParameter("seqNum", Integer.toString(seqNum))
@@ -83,20 +89,28 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
                 .post(RequestBody.create("", null))
                 .build();
         try (Response response = okHttpClient.newCall(request).execute()) {
+            ResponseBody responseBody = response.body();
             if (response.isSuccessful()) {
-                if (response.code() == 201) {
-                    TaskPools.SCHEDULED_POOL.submit((Runnable) this::updatePipeline);
+                if (responseBody == null) {
+                    throw new RuntimeException(String.format(
+                            "Successful response on getAudioProcessorPipelineSrcPort but body is empty. Code: %s",
+                            response.code()
+                    ));
                 }
-                return Integer.parseInt(response.body().string());
+                return new PipelineSrcPort(Integer.parseInt(responseBody.string()), response.code() == HttpURLConnection.HTTP_CREATED);
             } else {
-                throw new RuntimeException("Unsuccessful response. " + response.body().string());
+                throw new RuntimeException(String.format(
+                        "Unsuccessful response on getAudioProcessorPipelineSrcPort. Code: %s. Response: %s",
+                        response.code(),
+                        responseBody == null ? "" : responseBody.string()
+                ));
             }
         }
     }
 
-    private static void deleteAudioMixPipeline(String id, Callback callback) {
+    private static void deleteAudioProcessorPipeline(String id, Callback callback) {
         Request request = new Request.Builder()
-                .url(getRtpMixerHttpUrlBuilder(id).build())
+                .url(getRtpProcessorHttpUrlBuilder(id).build())
                 .delete().build();
         okHttpClient.newCall(request).enqueue(callback);
     }
@@ -110,7 +124,7 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
                     "AUDIO_PROCESSOR_IP"
             );
             if (StringUtils.isBlank(audioProcessorIp)) {
-                throw new RuntimeException("Can not get mixer hostname");
+                throw new RuntimeException("Can not get audio processor hostname");
             }
         }
         return audioProcessorIp;
@@ -125,7 +139,7 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
                     "AUDIO_PROCESSOR_HTTP_URL"
             );
             if (StringUtils.isBlank(audioProcessorPipelineUrl)) {
-                throw new RuntimeException("Can not get mixer hostname");
+                throw new RuntimeException("Can not get processor hostname");
             }
         }
         return audioProcessorPipelineUrl;
@@ -133,32 +147,42 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
 
     private int seqNum = 0;
 
-    private void updateMixerAddress() {
+    private void updateProcessorAddress() {
         if (!running.get()) {
             return;
         }
 
         try {
-            int mixerPort = getAudioMixPipelineSrcPort(conference.getGid(), udpTransport.getLocalAddress().getHostAddress(), udpTransport.getLocalPort(), seqNum);
-            if (mixerAddress == null || mixerAddress.getPort() != mixerPort) {
-                mixerAddress = new InetSocketAddress(getAudioProcessorIp(), mixerPort);
+            PipelineSrcPort pipelineSrcPort = getAudioProcessorPipelineSrcPort(
+                    conference.getGid(),
+                    udpTransport.getLocalAddress().getHostAddress(),
+                    udpTransport.getLocalPort(),
+                    seqNum
+            );
+            boolean processorAddressChanged = false;
+            if (processorAddress == null || processorAddress.getPort() != pipelineSrcPort.value) {
+                processorAddress = new InetSocketAddress(getAudioProcessorIp(), pipelineSrcPort.value);
+                processorAddressChanged = true;
+            }
+            if (pipelineSrcPort.created || processorAddressChanged) {
+                this.scheduleUpdatePipeline(0);
             }
         } catch (Exception e) {
-            logger.error("updateMixerAddress error", e);
-            mixerAddress = null;
+            logger.error("updateProcessorAddress error", e);
+            processorAddress = null;
         }
     }
 
-    private final ScheduledFuture<?> updateMixerAddressScheduledFuture;
+    private final ScheduledFuture<?> updateProcessorAddressScheduledFuture;
 
-    public ConfAudioMixerTransport(Conference conference) throws SocketException, UnknownHostException {
+    public ConfAudioProcessorTransport(Conference conference) throws SocketException, UnknownHostException {
         this.conference = conference;
         this.logger = conference.getLogger().createChildLogger(this.getClass().getName());
 
         streamInformationStore = new StreamInformationStoreImpl();
 
-        rtpReceiver = new OctoRtpReceiver(streamInformationStore, logger);
-        rtpReceiver.setPacketHandler(packetInfo -> {
+        rtpMixerReceiver = new OctoRtpReceiver(streamInformationStore, logger);
+        rtpMixerReceiver.setPacketHandler(packetInfo -> {
             Packet packet = packetInfo.getPacket();
             if (packet instanceof RtpPacket) {
                 seqNum = ((RtpPacket) packet).getSequenceNumber();
@@ -168,7 +192,7 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
         });
         udpTransport = new UdpTransport(InetAddress.getLocalHost().getHostAddress(), 0, logger, SO_RCVBUF, SO_SNDBUF);
 
-        updateMixerAddressScheduledFuture = TaskPools.SCHEDULED_POOL.scheduleAtFixedRate(this::updateMixerAddress, 0, 10, TimeUnit.SECONDS);
+        updateProcessorAddressScheduledFuture = TaskPools.SCHEDULED_POOL.scheduleAtFixedRate(this::updateProcessorAddress, 0, 10, TimeUnit.SECONDS);
 
         udpTransport.setIncomingDataHandler((data, offset, length, receivedTime) -> {
             byte[] copy = ByteBufferPool.getBuffer(
@@ -181,7 +205,7 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
             PacketInfo pktInfo = new PacketInfo(pkt);
             pktInfo.setReceivedTime(receivedTime.toEpochMilli());
 
-            rtpReceiver.enqueuePacket(pktInfo);
+            rtpMixerReceiver.enqueuePacket(pktInfo);
         });
         TaskPools.IO_POOL.submit(udpTransport::startReadingData);
     }
@@ -198,7 +222,7 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
 
     private PacketInfoQueue createQueue(String epId) {
         PacketInfoQueue q = new PacketInfoQueue(
-                "audio-mixer-outgoing-packet-queue",
+                "audio-processor-outgoing-packet-queue",
                 TaskPools.IO_POOL,
                 this::doSend,
                 1024);
@@ -220,9 +244,11 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
     }
 
     private boolean doSend(PacketInfo packetInfo) {
-        if (mixerAddress != null) {
+        InetSocketAddress processorAddressCopy = processorAddress;
+        // processorAddress may change after checking
+        if (processorAddressCopy != null) {
             Packet packet = packetInfo.getPacket();
-            udpTransport.send(packet.getBuffer(), packet.getOffset(), packet.getLength(), mixerAddress);
+            udpTransport.send(packet.getBuffer(), packet.getOffset(), packet.getLength(), processorAddressCopy);
             packetInfo.sent();
         }
 
@@ -233,7 +259,7 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
         if (running.compareAndSet(true, false)) {
             logger.info("Expiring");
 
-            updateMixerAddressScheduledFuture.cancel(false);
+            updateProcessorAddressScheduledFuture.cancel(false);
 
             outgoingPacketQueues.values().forEach(PacketInfoQueue::close);
             outgoingPacketQueues.clear();
@@ -241,14 +267,14 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
             Callback callback = new Callback() {
                 @Override
                 public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                    logger.error("deleteAudioMixPipeline error", e);
+                    logger.error("deleteAudioProcessorPipeline error", e);
                 }
 
                 @Override
                 public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
                     try {
                         if (!response.isSuccessful()) {
-                            logger.error("deleteAudioMixPipeline unsuccessful response. " + Objects.requireNonNull(response.body()).string());
+                            logger.error("deleteAudioProcessorPipeline unsuccessful response. " + Objects.requireNonNull(response.body()).string());
                         }
                     } finally {
                         response.close();
@@ -257,9 +283,9 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
             };
 
             try {
-                deleteAudioMixPipeline(conference.getGid(), callback);
+                deleteAudioProcessorPipeline(conference.getGid(), callback);
             } catch (Exception e) {
-                logger.error("Can not delete audio mix pipeline", e);
+                logger.error("Can not delete audio processor pipeline", e);
             }
         }
     }
@@ -268,11 +294,17 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
         streamInformationStore.addRtpPayloadType(payloadType);
     }
 
+    private void scheduleUpdatePipeline(int seconds) {
+        if (running.get()) {
+            TaskPools.SCHEDULED_POOL.schedule((Runnable) this::updatePipeline, seconds, TimeUnit.SECONDS);
+        }
+    }
+
     private void updatePipeline() {
-        Map<Long, String> collect = conference.getLocalEndpoints().stream()
+        Map<Long, String> ssrcToEndpoint = conference.getLocalEndpoints().stream()
                 .flatMap(e -> e.getRemoteAudioSsrcc().stream().map(s -> Maps.immutableEntry(s, e.getID())))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        updatePipeline(collect);
+        updatePipeline(ssrcToEndpoint);
     }
 
     public void updatePipeline(Map<Long, String> ssrcToEndpoint) {
@@ -280,7 +312,13 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
     }
 
     private void updatePipeline(String id, Map<Long, String> ssrcToEndpoint) {
-        if (ssrcToEndpoint.size()==0) return;
+        if (!running.get() || ssrcToEndpoint.size()==0) {
+            return;
+        }
+        if (processorAddress == null) {
+            TaskPools.SCHEDULED_POOL.schedule(()->this.updatePipeline(id, ssrcToEndpoint), 5, TimeUnit.SECONDS);
+            return;
+        }
         JSONObject jsonObject = new JSONObject();
         jsonObject.put("Ssrcs", ssrcToEndpoint);
         RequestBody body = RequestBody.create(
@@ -288,20 +326,27 @@ public class ConfAudioMixerTransport implements PotentialPacketHandler {
                 MediaType.parse("application/json")
         );
         Request request = new Request.Builder()
-                .url(getRtpMixerHttpUrlBuilder(id).build())
+                .url(getRtpProcessorHttpUrlBuilder(id).build())
                 .put(body)
                 .build();
         okHttpClient.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                logger.error("Failure updatePipeline", e);
+                logger.error("Failure on updatePipeline", e);
+                ConfAudioProcessorTransport.this.scheduleUpdatePipeline(30);
             }
 
             @Override
             public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
                 try {
                     if(!response.isSuccessful()) {
-                        logger.error("Unsuccessful response on updatePipeline. Response: " + response.body().string());
+                        ResponseBody responseBody = response.body();
+                        logger.error(String.format(
+                                "Unsuccessful response on updatePipeline. Code: %s. Response: %s",
+                                response.code(),
+                                responseBody==null ? "" : responseBody.string()
+                        ));
+                        ConfAudioProcessorTransport.this.scheduleUpdatePipeline(10);
                     }
                 } finally {
                     response.close();
