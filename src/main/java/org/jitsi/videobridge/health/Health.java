@@ -167,6 +167,8 @@ public class Health
         super.stop(bundleContext);
     }
 
+    private boolean firstCheckSkipped = false;
+
     /**
      * Checks the health of this {@link Videobridge}. This method only returns
      * the cache results, it does not do the actual health check (i.e. creating
@@ -180,6 +182,12 @@ public class Health
     protected void performCheck()
         throws Exception
     {
+        // skip the first check because of low performance in the start
+        if (!firstCheckSkipped) {
+            firstCheckSkipped = true;
+            return;
+        }
+
         Objects.requireNonNull(videobridge, "No Videobridge service available");
 
         if (MappingCandidateHarvesters.stunDiscoveryFailed)
