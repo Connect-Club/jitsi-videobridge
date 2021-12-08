@@ -625,7 +625,7 @@ public class Endpoint
                 if (!accepted)
                 {
                     logger.warn(
-                            "Dropping a packet which was supposed to be accepted:"
+                            "Dropping a RTP packet which was supposed to be accepted:"
                                     + packet);
                     return;
                 }
@@ -664,7 +664,15 @@ public class Endpoint
         {
             // Allow the BC to update the timestamp (in place).
             RtcpSrPacket rtcpSrPacket = (RtcpSrPacket) packet;
-            bitrateController.transformRtcp(rtcpSrPacket);
+            boolean accepted = bitrateController.transformRtcp(rtcpSrPacket);
+
+            if (!accepted)
+            {
+                logger.warn(
+                        "Dropping a RTCP SR packet which was supposed to be accepted:"
+                                + packet);
+                return;
+            }
 
             if (logger.isTraceEnabled())
             {

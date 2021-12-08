@@ -340,6 +340,13 @@ public class VP8AdaptiveTrackProjectionContext
         return frame.isAccepted() && frame.getProjection().accept(vp8Packet);
     }
 
+    @Override
+    public boolean accept(RtcpSrPacket rtcpSrPacket) {
+        VP8FrameProjection lastVP8FrameProjectionCopy = lastVP8FrameProjection;
+        return lastVP8FrameProjectionCopy.getVP8Frame() != null
+                && rtcpSrPacket.getSenderSsrc() == lastVP8FrameProjectionCopy.getVP8Frame().getSsrc();
+    }
+
     /**
      * For a frame that's been accepted by the quality filter, verify that
      * it's decodable given the projection decisions about previous frames

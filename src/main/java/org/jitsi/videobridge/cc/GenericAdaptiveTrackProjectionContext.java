@@ -234,6 +234,11 @@ class GenericAdaptiveTrackProjectionContext
         return accept;
     }
 
+    @Override
+    public boolean accept(RtcpSrPacket rtcpSrPacket) {
+        return true;
+    }
+
     /**
      * Initializes {@link #timestampDelta} if it hasn't been initialized
      * already.

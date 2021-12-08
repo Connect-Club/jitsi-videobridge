@@ -46,6 +46,8 @@ public interface AdaptiveTrackProjectionContext
      */
     boolean accept(PacketInfo packetInfo, int incomingIndex, int targetIndex);
 
+    boolean accept(RtcpSrPacket rtcpSrPacket);
+
     /**
      * @return true if this stream context needs a keyframe in order to either
      * start rendering again or there's a pending simulcast switch (depending

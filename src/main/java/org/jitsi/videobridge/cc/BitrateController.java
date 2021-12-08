@@ -314,7 +314,7 @@ public class BitrateController
         }
 
         // We only accept SRs for the SSRC that we're forwarding with.
-        return ssrc == adaptiveTrackProjection.getTargetSsrc();
+        return adaptiveTrackProjection.accept(rtcpSrPacket);
     }
 
 
@@ -325,8 +325,12 @@ public class BitrateController
         AdaptiveTrackProjection adaptiveTrackProjection
                 = adaptiveTrackProjectionMap.get(ssrc);
 
-        return adaptiveTrackProjection != null
-                && adaptiveTrackProjection.rewriteRtcp(rtcpSrPacket);
+        if (adaptiveTrackProjection == null) {
+            //probably audio stream
+            return true;
+        }
+
+        return adaptiveTrackProjection.rewriteRtcp(rtcpSrPacket);
     }
 
     /**

@@ -224,6 +224,15 @@ public class AdaptiveTrackProjection
         return accept;
     }
 
+    public boolean accept(@NotNull RtcpSrPacket rtcpSrPacket) {
+        AdaptiveTrackProjectionContext contextCopy = context;
+        if (contextCopy == null)
+        {
+            return false;
+        }
+        return contextCopy.accept(rtcpSrPacket);
+    }
+
     /**
      * Gets or creates the adaptive track projection context that corresponds to
      * the payload type of the RTP packet that is specified as a parameter. If
@@ -385,7 +394,7 @@ public class AdaptiveTrackProjection
         AdaptiveTrackProjectionContext contextCopy = context;
         if (contextCopy == null)
         {
-            return true;
+            return false;
         }
 
         return contextCopy.rewriteRtcp(rtcpSrPacket);
