@@ -31,4 +31,8 @@
     <root level="INFO">
         <appender-ref ref="asyncJsonRollingFileAppender"/>
     </root>
+
+    <logger name="org.jitsi.videobridge.Conference" level="DEBUG"/>
+    <logger name="org.jitsi.nlj.rtcp.NackHandler" level="DEBUG"/>
+    <logger name="org.jitsi.nlj.rtcp.RetransmissionRequester" level="DEBUG"/>
 </configuration>

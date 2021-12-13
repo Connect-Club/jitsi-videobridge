@@ -1255,6 +1255,16 @@ public class Conference
             AbstractEndpoint targetEndpoint
                 = findEndpointByReceiveSSRC(mediaSsrc);
 
+            if (logger.isDebugEnabled()) {
+                logger.debug(String.format(
+                        "Received %s(mediaSsrc=%s) from endpoint(id=%s) to endpoint(id=%s)",
+                        packet.getClass().getSimpleName(),
+                        mediaSsrc,
+                        packetInfo.getEndpointId(),
+                        targetEndpoint==null ? "not-found" : targetEndpoint.getID()
+                ));
+            }
+
             PotentialPacketHandler pph = null;
             if (targetEndpoint instanceof Endpoint)
             {
