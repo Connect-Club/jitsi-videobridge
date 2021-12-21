@@ -18,12 +18,15 @@ package org.jitsi.videobridge;
 import org.jitsi.cmd.CmdLine;
 import org.jitsi.config.JitsiConfig;
 import org.jitsi.meet.ComponentMain;
+import org.jitsi.nlj.util.Configuration;
+import org.jitsi.nlj.util.PacketCache;
 import org.jitsi.utils.logging2.Logger;
 import org.jitsi.utils.logging2.LoggerImpl;
 import org.jitsi.videobridge.osgi.BundleConfig;
 import org.jitsi.videobridge.xmpp.ComponentImpl;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
+import java.lang.reflect.Field;
 import java.util.logging.LogManager;
 
 /**
@@ -109,6 +112,13 @@ public class Main
         //---------install jul-to-slf4j---------
         SLF4JBridgeHandler.removeHandlersForRootLogger();
         LogManager.getLogManager().getLogger("").addHandler(new CustomSLF4JBridgeHandler());
+        //--------------------------------------
+
+        //---------increase packet cache--------
+        Field defaultConfiguration = PacketCache.class.getDeclaredField("defaultConfiguration");
+        defaultConfiguration.setAccessible(true);
+        Configuration conf = (Configuration) defaultConfiguration.get(null);
+        conf.put(PacketCache.Companion.getSIZE_PACKETS(), 5000);
         //--------------------------------------
 
         logger.info("Videobridge is starting up");
