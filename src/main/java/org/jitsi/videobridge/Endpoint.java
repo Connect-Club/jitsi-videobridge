@@ -210,8 +210,6 @@ public class Endpoint
      */
     private volatile boolean acceptVideo = false;
 
-    private volatile EndpointSubscriptionType subscriptionType = EndpointSubscriptionType.NORMAL;
-
     /**
      * The clock used by this endpoint
      */
@@ -565,19 +563,11 @@ public class Endpoint
         {
             if (packet instanceof VideoRtpPacket)
             {
-                return acceptVideo
-                        && subscriptionType == EndpointSubscriptionType.NORMAL
-                        && bitrateController.accept(packetInfo);
+                return acceptVideo && bitrateController.accept(packetInfo);
             }
-            if (packet instanceof AudioRtpPacket)
+            else if (packet instanceof AudioRtpPacket)
             {
-                if (acceptAudio) {
-                    return subscriptionType == EndpointSubscriptionType.MIXED_AUDIO
-                            ? AUDIO_MIXER_EP_ID.equals(packetInfo.getEndpointId())
-                            : bitrateController.accept(packetInfo);
-                } else {
-                    return false;
-                }
+                return acceptAudio && bitrateController.accept(packetInfo);
             }
         }
         else if (packet instanceof RtcpPacket)
@@ -1581,7 +1571,7 @@ public class Endpoint
 
     @Override
     public void setSubscriptionType(EndpointSubscriptionType subscriptionType) {
-        this.subscriptionType = subscriptionType;
+        bitrateController.setSubscriptionType(subscriptionType);
     }
 
     @Override

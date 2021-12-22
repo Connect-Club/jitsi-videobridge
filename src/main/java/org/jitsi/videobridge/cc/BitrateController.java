@@ -36,6 +36,7 @@ import java.util.concurrent.*;
 import java.util.stream.Collectors;
 import java.util.concurrent.atomic.*;
 
+import static org.jitsi.videobridge.ConfAudioProcessorTransport.AUDIO_MIXER_EP_ID;
 import static org.jitsi.videobridge.cc.config.BitrateControllerConfig.*;
 import static org.jitsi.videobridge.xmpp.MediaStreamTrackFactory.VP8_SIMULCAST_BASE_LAYER_HEIGHT;
 
@@ -172,6 +173,8 @@ public class BitrateController
 
     private final DiagnosticContext diagnosticContext;
 
+    private volatile EndpointSubscriptionType subscriptionType = EndpointSubscriptionType.NORMAL;
+
     // NOTE(george): this flag acts as an approximation for determining whether
     // or not adaptivity/probing is supported. Eventually we need to scrap this
     // and implement something cleaner, i.e. disable adaptivity if the endpoint
@@ -257,13 +260,12 @@ public class BitrateController
      */
     public boolean accept(@NotNull PacketInfo packetInfo)
     {
-        EndpointVideoConstraint videoConstraint = subscribedEndpointIds.get(packetInfo.getEndpointId());
-        if (videoConstraint == null) {
-            return false;
-        } else if (packetInfo.getPacket() instanceof AudioRtpPacket) {
-            return true;
-        } else if (videoConstraint.isOffVideo()) {
-            return false;
+        if (packetInfo.getPacket() instanceof AudioRtpPacket) {
+            if (subscriptionType == EndpointSubscriptionType.MIXED_AUDIO) {
+                return AUDIO_MIXER_EP_ID.equals(packetInfo.getEndpointId());
+            } else {
+                return subscribedEndpointIds.get(packetInfo.getEndpointId()) != null;
+            }
         }
 
         VideoRtpPacket videoRtpPacket = packetInfo.packetAs();
@@ -331,6 +333,11 @@ public class BitrateController
         }
 
         return adaptiveTrackProjection.rewriteRtcp(rtcpSrPacket);
+    }
+
+    public void setSubscriptionType(EndpointSubscriptionType subscriptionType) {
+        this.subscriptionType = subscriptionType;
+        update();
     }
 
     /**
@@ -562,9 +569,20 @@ public class BitrateController
 
         long bweBps = getAvailableBandwidth(nowMs);
 
+        List<AbstractEndpoint> endpointsWithVideo = new ArrayList<>();
+
+        if (subscriptionType == EndpointSubscriptionType.NORMAL) {
+            for (AbstractEndpoint endpoint : destinationEndpoint.getConference().getEndpoints()) {
+                EndpointVideoConstraint videoConstraint = subscribedEndpointIds.get(endpoint.getID());
+                if (videoConstraint != null && !videoConstraint.isOffVideo()) {
+                    endpointsWithVideo.add(endpoint);
+                }
+            }
+        }
+
         // Compute the bitrate allocation.
         TrackBitrateAllocation[]
-            trackBitrateAllocations = allocate(bweBps, destinationEndpoint.getConference().getEndpoints());
+            trackBitrateAllocations = allocate(bweBps, endpointsWithVideo);
 
         Set<String> conferenceEndpointIds = new HashSet<>();
 
@@ -625,21 +643,21 @@ public class BitrateController
                 }
             }
         }
-        else
-        {
-            for (AdaptiveTrackProjection adaptiveTrackProjection
+        for (AdaptiveTrackProjection adaptiveTrackProjection
                 : adaptiveTrackProjectionMap.values())
-            {
-                if (enableVideoQualityTracing)
-                {
-                    totalIdealIdx--;
-                    totalTargetIdx--;
-                }
-                adaptiveTrackProjection
-                    .setTargetIndex(RTPEncodingDesc.SUSPENDED_INDEX);
-                adaptiveTrackProjection
-                    .setIdealIndex(RTPEncodingDesc.SUSPENDED_INDEX);
+        {
+            if (adaptiveTrackProjections.contains(adaptiveTrackProjection)) {
+                continue;
             }
+            if (enableVideoQualityTracing)
+            {
+                totalIdealIdx--;
+                totalTargetIdx--;
+            }
+            adaptiveTrackProjection
+                    .setTargetIndex(RTPEncodingDesc.SUSPENDED_INDEX);
+            adaptiveTrackProjection
+                    .setIdealIndex(RTPEncodingDesc.SUSPENDED_INDEX);
         }
 
         if (enableVideoQualityTracing)
