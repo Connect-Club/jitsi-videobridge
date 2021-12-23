@@ -162,20 +162,12 @@ public class AdaptiveTrackProjection
     }
 
     /**
-     * Raised when a track has been resumed (after being suspended).
-     */
-    private boolean needsKeyframe = true;
-
-    /**
      * Sets the target index value for this track projection.
      *
      * @param value the new target index value for this track projection.
      */
     void setTargetIndex(int value)
     {
-        if (value == RTPEncodingDesc.SUSPENDED_INDEX) {
-            needsKeyframe = true;
-        }
         targetIndex = value;
     }
 
@@ -223,10 +215,9 @@ public class AdaptiveTrackProjection
         // sufficient to only check for needing a key frame if the packet wasn't
         // accepted. But this wouldn't be enough, as we may be accepting packets
         // of low-quality, while we wish to switch to high-quality.
-        if ((needsKeyframe || contextCopy.needsKeyframe())
+        if ((contextCopy.needsKeyframe())
             && targetIndexCopy > RTPEncodingDesc.SUSPENDED_INDEX)
         {
-            needsKeyframe = false;
             keyframeRequester.run();
         }
 
