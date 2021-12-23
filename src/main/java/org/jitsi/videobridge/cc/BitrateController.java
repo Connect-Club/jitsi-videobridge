@@ -584,8 +584,6 @@ public class BitrateController
         TrackBitrateAllocation[]
             trackBitrateAllocations = allocate(bweBps, endpointsWithVideo);
 
-        Set<String> conferenceEndpointIds = new HashSet<>();
-
         // Accumulators used for tracing purposes.
         long totalIdealBps = 0, totalTargetBps = 0;
         int totalIdealIdx = 0, totalTargetIdx = 0;
@@ -597,8 +595,6 @@ public class BitrateController
             for (TrackBitrateAllocation
                 trackBitrateAllocation : trackBitrateAllocations)
             {
-                conferenceEndpointIds.add(trackBitrateAllocation.endpointID);
-
                 int trackTargetIdx = trackBitrateAllocation.getTargetIndex(),
                     trackIdealIdx = trackBitrateAllocation.getIdealIndex();
 
