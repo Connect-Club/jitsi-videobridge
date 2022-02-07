@@ -711,6 +711,10 @@ public class Endpoint
                 .orElse(ClockUtils.NEVER);
     }
 
+    public TransceiverStats getTransceiverStats() {
+        return transceiver.getTransceiverStats();
+    }
+
     public List<Long> getRemoteAudioSsrcc() {
         return channelShims.stream()
                 .filter(x->x.getMediaType()==MediaType.AUDIO)
