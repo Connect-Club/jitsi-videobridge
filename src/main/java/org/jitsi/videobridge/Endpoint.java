@@ -17,9 +17,12 @@ package org.jitsi.videobridge;
 
 import kotlin.*;
 import kotlin.jvm.functions.*;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.jetbrains.annotations.*;
 import org.jitsi.nlj.*;
 import org.jitsi.nlj.format.*;
+import org.jitsi.nlj.rtcp.RtcpEventNotifier;
+import org.jitsi.nlj.rtcp.RtcpListener;
 import org.jitsi.nlj.rtp.*;
 import org.jitsi.nlj.rtp.bandwidthestimation.*;
 import org.jitsi.nlj.srtp.*;
@@ -350,6 +353,20 @@ public class Endpoint
         {
             conference.getVideobridge().getStatistics()
                 .totalEndpoints.incrementAndGet();
+        }
+
+        try {
+            RtcpEventNotifier rtcpEventNotifier = (RtcpEventNotifier) FieldUtils.readField(transceiver, "rtcpEventNotifier", true);
+            rtcpEventNotifier.addRtcpEventListener(new RtcpListener() {
+                @Override
+                public void rtcpPacketReceived(RtcpPacket packet, long receivedTime) {
+                    if (packet instanceof RtcpRrPacket) {
+                        conference.onRtcpRrPacket(Endpoint.this, (RtcpRrPacket) packet);
+                    }
+                }
+            });
+        } catch (IllegalAccessException e) {
+            logger.error("cannot set rtcp event listener", e);
         }
     }
 

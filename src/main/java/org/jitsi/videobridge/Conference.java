@@ -21,6 +21,8 @@ import org.jetbrains.annotations.Nullable;
 import org.jitsi.eventadmin.*;
 import org.jitsi.nlj.*;
 import org.jitsi.rtp.*;
+import org.jitsi.rtp.rtcp.RtcpReportBlock;
+import org.jitsi.rtp.rtcp.RtcpRrPacket;
 import org.jitsi.rtp.rtcp.rtcpfb.payload_specific_fb.*;
 import org.jitsi.rtp.rtp.*;
 import org.jitsi.utils.collections.*;
@@ -46,6 +48,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 import java.util.logging.*;
+import java.util.stream.Collectors;
 
 import static org.jitsi.utils.collections.JMap.entry;
 import static org.jitsi.videobridge.EndpointMessageBuilder.*;
@@ -1294,6 +1297,23 @@ public class Conference
         {
             sendOut(packetInfo);
         }
+    }
+
+    public void onRtcpRrPacket(Endpoint endpoint, RtcpRrPacket rrPacket) {
+        EventAdmin eventAdmin = getEventAdmin();
+        if (eventAdmin == null) return;
+
+        Map<AbstractEndpoint, List<RtcpReportBlock>> endpointReportBlocks = rrPacket.getReportBlocks().stream()
+                .map(x -> new AbstractMap.SimpleEntry<>(findEndpointByReceiveSSRC(x.getSsrc()), x))
+                .filter(x -> x.getKey() != null)
+                .collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
+
+        endpointReportBlocks.forEach((subscribedEndpoint, reportBlocks) ->
+                this.eventAdmin.sendEvent(EventFactory.endpointReceivedReceiverReport(
+                        endpoint,
+                        subscribedEndpoint,
+                        reportBlocks)
+                ));
     }
 
     /**

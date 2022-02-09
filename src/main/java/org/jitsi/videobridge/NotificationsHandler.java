@@ -10,12 +10,14 @@ import org.jitsi.nlj.stats.TransceiverStats;
 import org.jitsi.nlj.transform.node.incoming.IncomingSsrcStats;
 import org.jitsi.nlj.transform.node.incoming.IncomingStatisticsSnapshot;
 import org.jitsi.osgi.EventHandlerActivator;
+import org.jitsi.rtp.rtcp.RtcpReportBlock;
 import org.jitsi.utils.logging2.Logger;
 import org.jitsi.utils.logging2.LoggerImpl;
 import org.jitsi.videobridge.util.PropertyUtil;
 import org.jitsi.videobridge.util.TaskPools;
 import org.json.simple.JSONObject;
 
+import javax.xml.ws.Holder;
 import java.io.IOException;
 import java.time.Clock;
 import java.util.*;
@@ -52,7 +54,8 @@ public class NotificationsHandler extends EventHandlerActivator {
                 EventFactory.CONFERENCE_CREATED_TOPIC,
                 EventFactory.CONFERENCE_EXPIRED_TOPIC,
                 EventFactory.ENDPOINT_CREATED_TOPIC,
-                EventFactory.ENDPOINT_EXPIRED_TOPIC
+                EventFactory.ENDPOINT_EXPIRED_TOPIC,
+                EventFactory.ENDPOINT_RECEIVER_REPORT_RECEIVED_TOPIC
         });
     }
 
@@ -76,6 +79,7 @@ public class NotificationsHandler extends EventHandlerActivator {
         String eventType = null;
         AbstractEndpoint endpoint = null;
         Conference conference = null;
+        Map<String, Object> payload = null;
         switch (event.getTopic()) {
             case EventFactory.CONFERENCE_CREATED_TOPIC:
                 eventType = "CONFERENCE_CREATED";
@@ -93,6 +97,22 @@ public class NotificationsHandler extends EventHandlerActivator {
                 eventType = "ENDPOINT_EXPIRED";
                 endpoint = (AbstractEndpoint) event.getProperty(EventFactory.EVENT_SOURCE);
                 break;
+            case EventFactory.ENDPOINT_RECEIVER_REPORT_RECEIVED_TOPIC:
+                eventType = "ENDPOINT_CLIENT_STATS";
+                endpoint = (Endpoint) event.getProperty(EventFactory.EVENT_SOURCE);
+                AbstractEndpoint reportTarget = (AbstractEndpoint) event.getProperty(EventFactory.REPORT_TARGET);
+                Collection<RtcpReportBlock> reportBlocks = (Collection<RtcpReportBlock>) event.getProperty(EventFactory.REPORT_BLOCKS);
+                double fractionLost = reportBlocks.stream()
+                        .mapToInt(RtcpReportBlock::getFractionLost)
+                        .average().orElse(0.0);
+                payload = ImmutableMap.of(
+                        "endpointId", reportTarget.getID(),
+                        // https://datatracker.ietf.org/doc/html/rfc3550#appendix-A.3
+                        // fraction = (lost_interval << 8) / expected_interval
+                        "fractionLost", 100 * fractionLost / 256
+//                        "jitter", reportBlocks.getInterarrivalJitter()
+                );
+                break;
         }
         if (eventType != null) {
             final Logger logger = NotificationsHandler.logger.createChildLogger(NotificationsHandler.class.getName());
@@ -109,6 +129,9 @@ public class NotificationsHandler extends EventHandlerActivator {
                     "conferenceId", conference.getID(),
                     "conferenceGid", conference.getGid()
             ));
+            if (payload != null) {
+                notification.put("payload", new JSONObject(payload));
+            }
             if (endpoint != null) {
                 if (endpoint instanceof Endpoint) {
                     Endpoint endpnt = (Endpoint) endpoint;
@@ -147,6 +170,8 @@ public class NotificationsHandler extends EventHandlerActivator {
 
     private Runnable createEndpointStatsHandler(final Endpoint endpoint) {
         final Conference conference = endpoint.getConference();
+        final Holder<Integer> previousNumExpectedPackets = new Holder<>(0);
+        final Holder<Integer> previousNumReceivedPackets = new Holder<>(0);
         return () -> {
             if (endpoint.isExpired()) {
                 return;
@@ -154,18 +179,29 @@ public class NotificationsHandler extends EventHandlerActivator {
 
             TransceiverStats transceiverStats = endpoint.getTransceiverStats();
             long createdAt = clock.instant().getEpochSecond();
-            double rtt = transceiverStats.getEndpointConnectionStats().getRtt();
-
-            long cumulativePacketsLost = 0;
-            double jitter = 0.0;
             Map<Long, IncomingSsrcStats.Snapshot> incomingSsrcStatsMap = transceiverStats.getIncomingStats().getSsrcStats();
-            if (incomingSsrcStatsMap.size() > 0) {
-                for (IncomingSsrcStats.Snapshot incomingSsrcStats : incomingSsrcStatsMap.values()) {
-                    cumulativePacketsLost += incomingSsrcStats.getCumulativePacketsLost();
-                    jitter += incomingSsrcStats.getJitter();
-                }
-                jitter /= incomingSsrcStatsMap.size();
+            if (incomingSsrcStatsMap.size() == 0) {
+                return;
             }
+            double rtt = transceiverStats.getEndpointConnectionStats().getRtt();
+            double jitter = 0.0;
+            int numExpectedPackets = 0;
+            int numReceivedPackets = 0;
+            for (IncomingSsrcStats.Snapshot incomingSsrcStats : incomingSsrcStatsMap.values()) {
+                jitter += incomingSsrcStats.getJitter();
+                numExpectedPackets += incomingSsrcStats.getNumExpectedPackets();
+                numReceivedPackets += incomingSsrcStats.getNumReceivedPackets();
+            }
+            jitter /= incomingSsrcStatsMap.size();
+            int numExpectedPacketsInterval = numExpectedPackets - previousNumExpectedPackets.value;
+            int numReceivedPacketsInterval = numReceivedPackets - previousNumReceivedPackets.value;
+            int numLostPacketsInterval = numExpectedPacketsInterval - numReceivedPacketsInterval;
+            int fractionLost = 0;
+            if (numExpectedPacketsInterval != 0 && numLostPacketsInterval > 0) {
+                fractionLost = 100 * numLostPacketsInterval /  numExpectedPacketsInterval;
+            }
+            previousNumExpectedPackets.value = numExpectedPackets;
+            previousNumReceivedPackets.value = numReceivedPackets;
 
             JSONObject notification = new JSONObject(ImmutableMap.<String, Object>builder()
                     .put("eventType", "ENDPOINT_SERVER_STATS")
@@ -177,7 +213,7 @@ public class NotificationsHandler extends EventHandlerActivator {
                     .put("payload", ImmutableMap.of(
                             "rtt", rtt,
                             "jitter", jitter,
-                            "cumulativePacketsLost", cumulativePacketsLost
+                            "fractionLost", fractionLost
                     ))
                     .build());
 

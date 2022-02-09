@@ -19,6 +19,7 @@ import java.util.*;
 
 import org.ice4j.ice.*;
 import org.jitsi.eventadmin.*;
+import org.jitsi.rtp.rtcp.RtcpReportBlock;
 import org.jitsi.videobridge.ice.*;
 
 /**
@@ -62,6 +63,9 @@ public class EventFactory
      */
     public static final String MSG_TRANSPORT_READY_TOPIC
         = "org/jitsi/videobridge/Endpoint/MSG_TRANSPORT_READY_TOPIC";
+
+    public static final String ENDPOINT_RECEIVER_REPORT_RECEIVED_TOPIC
+        = "org/jitsi/videobridge/Endpoint/RECEIVER_REPORT_RECEIVED";
 
     /**
      * Creates a new "conference created" <tt>Event</tt>, which indicates the
@@ -127,5 +131,18 @@ public class EventFactory
 
         properties.put(EVENT_SOURCE, endpoint);
         return new Event(MSG_TRANSPORT_READY_TOPIC, properties);
+    }
+
+    public static final String REPORT_TARGET = "report.target";
+    public static final String REPORT_BLOCKS = "report.blocks";
+
+    public static Event endpointReceivedReceiverReport(Endpoint endpoint, AbstractEndpoint subscribedEndpoint, Collection<RtcpReportBlock> reportBlocks)
+    {
+        Dictionary<String, Object> properties = new Hashtable<>(3);
+
+        properties.put(EVENT_SOURCE, endpoint);
+        properties.put(REPORT_TARGET, subscribedEndpoint);
+        properties.put(REPORT_BLOCKS, reportBlocks);
+        return new Event(ENDPOINT_RECEIVER_REPORT_RECEIVED_TOPIC, properties);
     }
 }
