@@ -159,7 +159,7 @@ public class NotificationsHandler extends EventHandlerActivator {
         final Conference conference = endpoint.getConference();
         final Holder<Integer> previousNumExpectedPackets = new Holder<>(0);
         final Holder<Integer> previousNumReceivedPackets = new Holder<>(0);
-        final Holder<Map<Long, RtcpReportBlock>> previousSsrcReportBlock = new Holder<>(Collections.emptyMap());
+        final Holder<Map<Long, RtcpReportBlock>> previousSsrcReportBlock = new Holder<>(new HashMap<>());
         return () -> {
             try {
                 if (endpoint.isExpired()) {
