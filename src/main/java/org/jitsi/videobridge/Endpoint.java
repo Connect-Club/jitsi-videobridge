@@ -231,7 +231,8 @@ public class Endpoint
     private final Map<Long, Integer> ssrcSequenceNumberDelta = new ConcurrentHashMap<>();
     private final Map<Long, Integer> ssrcLastSequenceNumber = new ConcurrentHashMap<>();
 
-    private final Map<Long, RtcpReportBlock> ssrcLastReportBlock = new HashMap<>();
+    private final Map<Long, RtcpReportBlock> ssrcFirstReportBlock = new HashMap<>();
+    private final Map<Long, RtcpReportBlock> ssrcReportBlock = new HashMap<>();
 
     /**
      * The executor which runs bandwidth probing.
@@ -363,8 +364,11 @@ public class Endpoint
                 public void rtcpPacketReceived(RtcpPacket packet, long receivedTime) {
                     if (packet instanceof RtcpRrPacket) {
                         RtcpRrPacket rrPacket = (RtcpRrPacket) packet;
-                        synchronized (ssrcLastReportBlock) {
-                            rrPacket.getReportBlocks().forEach(reportBlock -> ssrcLastReportBlock.put(reportBlock.getSsrc(), reportBlock));
+                        synchronized (ssrcFirstReportBlock) {
+                            rrPacket.getReportBlocks().forEach(reportBlock -> ssrcFirstReportBlock.putIfAbsent(reportBlock.getSsrc(), reportBlock));
+                        }
+                        synchronized (ssrcReportBlock) {
+                            rrPacket.getReportBlocks().forEach(reportBlock -> ssrcReportBlock.put(reportBlock.getSsrc(), reportBlock));
                         }
                     }
                 }
@@ -1619,9 +1623,15 @@ public class Endpoint
         return infoForNotification;
     }
 
-    public Map<Long, RtcpReportBlock> getSsrcLastReportBlock() {
-        synchronized (ssrcLastReportBlock) {
-            return new HashMap<>(ssrcLastReportBlock);
+    public Map<Long, RtcpReportBlock> getSsrcFirstReportBlock() {
+        synchronized (ssrcFirstReportBlock) {
+            return new HashMap<>(ssrcFirstReportBlock);
+        }
+    }
+
+    public Map<Long, RtcpReportBlock> getSsrcReportBlock() {
+        synchronized (ssrcReportBlock) {
+            return new HashMap<>(ssrcReportBlock);
         }
     }
 }

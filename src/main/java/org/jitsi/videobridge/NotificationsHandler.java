@@ -1,6 +1,5 @@
 package org.jitsi.videobridge;
 
-import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 import okhttp3.*;
 import org.apache.commons.lang3.StringUtils;
@@ -8,7 +7,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jitsi.eventadmin.Event;
 import org.jitsi.nlj.stats.TransceiverStats;
 import org.jitsi.nlj.transform.node.incoming.IncomingSsrcStats;
-import org.jitsi.nlj.transform.node.incoming.IncomingStatisticsSnapshot;
 import org.jitsi.osgi.EventHandlerActivator;
 import org.jitsi.rtp.rtcp.RtcpReportBlock;
 import org.jitsi.utils.logging2.Logger;
@@ -19,7 +17,6 @@ import org.json.simple.JSONObject;
 
 import javax.xml.ws.Holder;
 import java.io.IOException;
-import java.io.Serializable;
 import java.time.Clock;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -162,13 +159,14 @@ public class NotificationsHandler extends EventHandlerActivator {
         final Conference conference = endpoint.getConference();
         final Holder<Integer> previousNumExpectedPackets = new Holder<>(0);
         final Holder<Integer> previousNumReceivedPackets = new Holder<>(0);
-        final Holder<Map<Long, RtcpReportBlock>> previousSsrcLastReportBlock = new Holder<>(null);
+        final Holder<Map<Long, RtcpReportBlock>> previousSsrcReportBlock = new Holder<>(Collections.emptyMap());
         return () -> {
             try {
                 if (endpoint.isExpired()) {
                     return;
                 }
 
+                //Server stats
                 TransceiverStats transceiverStats = endpoint.getTransceiver().getTransceiverStats();
                 long createdAt = clock.instant().getEpochSecond();
                 Map<Long, IncomingSsrcStats.Snapshot> incomingSsrcStatsMap = transceiverStats.getIncomingStats().getSsrcStats();
@@ -194,9 +192,36 @@ public class NotificationsHandler extends EventHandlerActivator {
                 }
                 previousNumExpectedPackets.value = numExpectedPackets;
                 previousNumReceivedPackets.value = numReceivedPackets;
+                //End of server stats
+
+                //Clients stats
+                Map<Long, RtcpReportBlock> ssrcLastReportBlock = endpoint.getSsrcReportBlock();
+                endpoint.getSsrcFirstReportBlock().forEach((ssrc,reportBlock) -> previousSsrcReportBlock.value.putIfAbsent(ssrc, reportBlock));
+                class SubscribedEndpointStats {
+                    long packetsLost;
+                    long packetsExpected;
+                }
+                Map<String, SubscribedEndpointStats> subscribedEndpointStats = new HashMap<>();
+                ssrcLastReportBlock.forEach((ssrc, lastReportBlock) -> {
+                    RtcpReportBlock prevReportBlock = previousSsrcReportBlock.value.get(ssrc);
+                    if (prevReportBlock == null || lastReportBlock.getExtendedHighestSeqNum() == prevReportBlock.getExtendedHighestSeqNum()) return;
+                    AbstractEndpoint subscribedEndpoint = conference.findEndpointByReceiveSSRC(lastReportBlock.getSsrc());
+                    if (subscribedEndpoint == null) return;
+                    SubscribedEndpointStats stats = subscribedEndpointStats.computeIfAbsent(subscribedEndpoint.getID(), k -> new SubscribedEndpointStats());
+                    stats.packetsLost += lastReportBlock.getCumulativePacketsLost() - prevReportBlock.getCumulativePacketsLost();
+                    stats.packetsExpected += lastReportBlock.getExtendedHighestSeqNum() - prevReportBlock.getExtendedHighestSeqNum();
+                });
+                List<ImmutableMap<String, Object>> subscribedEndpoints = subscribedEndpointStats.entrySet().stream()
+                        .map(x -> ImmutableMap.<String,Object>of(
+                                "endpointId", x.getKey(),
+                                "fractionLost", x.getValue().packetsLost * 100 / x.getValue().packetsExpected
+                        ))
+                        .collect(Collectors.toList());
+                previousSsrcReportBlock.value = ssrcLastReportBlock;
+                //End of client stats
 
                 JSONObject serverStatsNotification = new JSONObject(ImmutableMap.<String, Object>builder()
-                        .put("eventType", "ENDPOINT_SERVER_STATS")
+                        .put("eventType", "ENDPOINT_STATS")
                         .put("createdAt", createdAt)
                         .put("conferenceId", conference.getID())
                         .put("conferenceGid", conference.getGid())
@@ -205,45 +230,12 @@ public class NotificationsHandler extends EventHandlerActivator {
                         .put("payload", ImmutableMap.of(
                                 "rtt", rtt,
                                 "jitter", jitter,
-                                "fractionLost", fractionLost
+                                "fractionLost", fractionLost,
+                                "subscribedEndpoints", subscribedEndpoints
                         ))
                         .build());
 
                 submitNotification(conference, false, serverStatsNotification);
-
-                Map<Long, RtcpReportBlock> ssrcLastReportBlock = endpoint.getSsrcLastReportBlock();
-                if (previousSsrcLastReportBlock.value != null) {
-                    class SubscribedEndpointStats {
-                        long cumulativePacketsLost;
-                        long expectedPackets;
-                    }
-                    Map<String, SubscribedEndpointStats> subscribedEndpointStats = new HashMap<>();
-                    ssrcLastReportBlock.forEach((ssrc, reportBlock) -> {
-                        RtcpReportBlock prevReportBlock = previousSsrcLastReportBlock.value.get(ssrc);
-                        if (prevReportBlock == null || reportBlock.getExtendedHighestSeqNum() == prevReportBlock.getExtendedHighestSeqNum()) return;
-                        AbstractEndpoint subscribedEndpoint = conference.findEndpointByReceiveSSRC(reportBlock.getSsrc());
-                        if (subscribedEndpoint == null) return;
-                        SubscribedEndpointStats stats = subscribedEndpointStats.computeIfAbsent(subscribedEndpoint.getID(), k -> new SubscribedEndpointStats());
-                        stats.cumulativePacketsLost += reportBlock.getCumulativePacketsLost() - prevReportBlock.getCumulativePacketsLost();
-                        stats.expectedPackets += reportBlock.getExtendedHighestSeqNum() - prevReportBlock.getExtendedHighestSeqNum();
-                    });
-                    if (subscribedEndpointStats.size() > 0) {
-                        List<ImmutableMap<String, Object>> endpoints = subscribedEndpointStats.entrySet().stream()
-                                .map(x -> ImmutableMap.<String,Object>of("endpointId", x.getKey(), "fractionLost", x.getValue().cumulativePacketsLost * 100 / x.getValue().expectedPackets))
-                                .collect(Collectors.toList());
-                        JSONObject clientStatsNotification = new JSONObject(ImmutableMap.<String, Object>builder()
-                                .put("eventType", "ENDPOINT_CLIENT_STATS")
-                                .put("createdAt", createdAt)
-                                .put("conferenceId", conference.getID())
-                                .put("conferenceGid", conference.getGid())
-                                .put("endpointId", endpoint.getID())
-                                .put("endpointUuid", endpoint.getUuid().toString())
-                                .put("payload", ImmutableMap.of("endpoints", endpoints))
-                                .build());
-                        submitNotification(conference, false, clientStatsNotification);
-                    }
-                }
-                previousSsrcLastReportBlock.value = ssrcLastReportBlock;
             } catch (Exception e) {
                 logger.error("Endpoint stats handler error", e);
                 throw e;
