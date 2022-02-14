@@ -231,6 +231,7 @@ public class Endpoint
     private final Map<Long, Integer> ssrcSequenceNumberDelta = new ConcurrentHashMap<>();
     private final Map<Long, Integer> ssrcLastSequenceNumber = new ConcurrentHashMap<>();
 
+    private final Map<Long, RtcpReportBlock> ssrcLastReportBlock = new HashMap<>();
 
     /**
      * The executor which runs bandwidth probing.
@@ -361,7 +362,10 @@ public class Endpoint
                 @Override
                 public void rtcpPacketReceived(RtcpPacket packet, long receivedTime) {
                     if (packet instanceof RtcpRrPacket) {
-                        conference.onRtcpRrPacket(Endpoint.this, (RtcpRrPacket) packet);
+                        RtcpRrPacket rrPacket = (RtcpRrPacket) packet;
+                        synchronized (ssrcLastReportBlock) {
+                            rrPacket.getReportBlocks().forEach(reportBlock -> ssrcLastReportBlock.put(reportBlock.getSsrc(), reportBlock));
+                        }
                     }
                 }
             });
@@ -726,10 +730,6 @@ public class Endpoint
                 .map(ChannelShim::getCreationTimestamp)
                 .max(Comparator.comparing(Function.identity()))
                 .orElse(ClockUtils.NEVER);
-    }
-
-    public TransceiverStats getTransceiverStats() {
-        return transceiver.getTransceiverStats();
     }
 
     public List<Long> getRemoteAudioSsrcc() {
@@ -1619,4 +1619,9 @@ public class Endpoint
         return infoForNotification;
     }
 
+    public Map<Long, RtcpReportBlock> getSsrcLastReportBlock() {
+        synchronized (ssrcLastReportBlock) {
+            return new HashMap<>(ssrcLastReportBlock);
+        }
+    }
 }

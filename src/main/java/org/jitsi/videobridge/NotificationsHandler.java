@@ -19,6 +19,7 @@ import org.json.simple.JSONObject;
 
 import javax.xml.ws.Holder;
 import java.io.IOException;
+import java.io.Serializable;
 import java.time.Clock;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,6 +27,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 @SuppressWarnings("unused") // started by OSGi
 public class NotificationsHandler extends EventHandlerActivator {
@@ -34,7 +36,9 @@ public class NotificationsHandler extends EventHandlerActivator {
 
     public static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
-    private final static OkHttpClient okHttpClient = new OkHttpClient.Builder().build();
+    private final static OkHttpClient okHttpClient = new OkHttpClient.Builder()
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build();
 
     static class ConferenceNotifications {
         final Lock lock = new ReentrantLock(true);
@@ -54,8 +58,7 @@ public class NotificationsHandler extends EventHandlerActivator {
                 EventFactory.CONFERENCE_CREATED_TOPIC,
                 EventFactory.CONFERENCE_EXPIRED_TOPIC,
                 EventFactory.ENDPOINT_CREATED_TOPIC,
-                EventFactory.ENDPOINT_EXPIRED_TOPIC,
-                EventFactory.ENDPOINT_RECEIVER_REPORT_RECEIVED_TOPIC
+                EventFactory.ENDPOINT_EXPIRED_TOPIC
         });
     }
 
@@ -80,6 +83,7 @@ public class NotificationsHandler extends EventHandlerActivator {
         AbstractEndpoint endpoint = null;
         Conference conference = null;
         Map<String, Object> payload = null;
+        boolean lastConferenceEvent = false;
         switch (event.getTopic()) {
             case EventFactory.CONFERENCE_CREATED_TOPIC:
                 eventType = "CONFERENCE_CREATED";
@@ -88,6 +92,7 @@ public class NotificationsHandler extends EventHandlerActivator {
             case EventFactory.CONFERENCE_EXPIRED_TOPIC:
                 eventType = "CONFERENCE_EXPIRED";
                 conference = (Conference) event.getProperty(EventFactory.EVENT_SOURCE);
+                lastConferenceEvent = true;
                 break;
             case EventFactory.ENDPOINT_CREATED_TOPIC:
                 eventType = "ENDPOINT_CREATED";
@@ -97,127 +102,152 @@ public class NotificationsHandler extends EventHandlerActivator {
                 eventType = "ENDPOINT_EXPIRED";
                 endpoint = (AbstractEndpoint) event.getProperty(EventFactory.EVENT_SOURCE);
                 break;
-            case EventFactory.ENDPOINT_RECEIVER_REPORT_RECEIVED_TOPIC:
-                eventType = "ENDPOINT_CLIENT_STATS";
-                endpoint = (Endpoint) event.getProperty(EventFactory.EVENT_SOURCE);
-                AbstractEndpoint reportTarget = (AbstractEndpoint) event.getProperty(EventFactory.REPORT_TARGET);
-                Collection<RtcpReportBlock> reportBlocks = (Collection<RtcpReportBlock>) event.getProperty(EventFactory.REPORT_BLOCKS);
-                double fractionLost = reportBlocks.stream()
-                        .mapToInt(RtcpReportBlock::getFractionLost)
-                        .average().orElse(0.0);
-                payload = ImmutableMap.of(
-                        "endpointId", reportTarget.getID(),
-                        // https://datatracker.ietf.org/doc/html/rfc3550#appendix-A.3
-                        // fraction = (lost_interval << 8) / expected_interval
-                        "fractionLost", 100 * fractionLost / 256
-//                        "jitter", reportBlocks.getInterarrivalJitter()
-                );
-                break;
         }
-        if (eventType != null) {
-            final Logger logger = NotificationsHandler.logger.createChildLogger(NotificationsHandler.class.getName());
-            logger.addContext("loggerUuid", UUID.randomUUID().toString());
-            if (conference == null && endpoint != null) {
-                logger.addContext("epId", endpoint.getID());
-                logger.addContext("epUuid", endpoint.getUuid().toString());
-                conference = endpoint.getConference();
-            }
-            logger.addContext(ImmutableMap.of("confId", conference.getID(), "gid", conference.getGid()));
-            JSONObject notification = new JSONObject(ImmutableMap.of(
-                    "eventType", eventType,
-                    "createdAt", createdAt,
-                    "conferenceId", conference.getID(),
-                    "conferenceGid", conference.getGid()
-            ));
-            if (payload != null) {
-                notification.put("payload", new JSONObject(payload));
-            }
-            if (endpoint != null) {
-                if (endpoint instanceof Endpoint) {
-                    Endpoint endpnt = (Endpoint) endpoint;
-                    if (endpnt.isShadow()) {
-                        logger.info("This is shadow endpoint. Ignoring notification");
-                        return;
-                    }
-                    notification.put("endpointId", endpnt.getID());
-                    notification.put("endpointUuid", endpnt.getUuid().toString());
-                    if (event.getTopic().equals(EventFactory.ENDPOINT_CREATED_TOPIC)) {
-                        JSONObject infoForNotification = endpnt.getInfoForNotification();
-                        if (infoForNotification != null) {
-                            notification.putAll(infoForNotification);
-                        }
-                        ScheduledFuture<?> scheduledFuture = TaskPools.SCHEDULED_POOL.scheduleAtFixedRate(createEndpointStatsHandler(endpnt), 10, 10, TimeUnit.SECONDS);
-                        ScheduledFuture<?> prevScheduledFuture = endpointScheduledFutureMap.put(endpnt, scheduledFuture);
-                        if (prevScheduledFuture != null) {
-                            logger.warn("prevScheduledFuture != null");
-                            prevScheduledFuture.cancel(false);
-                        }
-                    } else if (event.getTopic().equals(EventFactory.ENDPOINT_EXPIRED_TOPIC)) {
-                        ScheduledFuture<?> scheduledFuture = endpointScheduledFutureMap.remove(endpnt);
-                        if (scheduledFuture != null) {
-                            scheduledFuture.cancel(false);
-                        }
-                    }
-                } else {
-                    logger.info(String.format("This is endpoint of type '%s'. Ignoring notification", endpoint.getClass().toString()));
+        if (eventType == null) {
+            return;
+        }
+        final Logger logger = NotificationsHandler.logger.createChildLogger(NotificationsHandler.class.getName());
+        logger.addContext("loggerUuid", UUID.randomUUID().toString());
+        if (conference == null && endpoint != null) {
+            logger.addContext("epId", endpoint.getID());
+            logger.addContext("epUuid", endpoint.getUuid().toString());
+            conference = endpoint.getConference();
+        }
+        logger.addContext(ImmutableMap.of("confId", conference.getID(), "gid", conference.getGid()));
+        JSONObject notification = new JSONObject(ImmutableMap.of(
+                "eventType", eventType,
+                "createdAt", createdAt,
+                "conferenceId", conference.getID(),
+                "conferenceGid", conference.getGid()
+        ));
+        if (payload != null) {
+            notification.put("payload", new JSONObject(payload));
+        }
+        if (endpoint != null) {
+            if (endpoint instanceof Endpoint) {
+                Endpoint endpnt = (Endpoint) endpoint;
+                if (endpnt.isShadow()) {
+                    logger.info("This is shadow endpoint. Ignoring notification");
                     return;
                 }
+                notification.put("endpointId", endpnt.getID());
+                notification.put("endpointUuid", endpnt.getUuid().toString());
+                if (event.getTopic().equals(EventFactory.ENDPOINT_CREATED_TOPIC)) {
+                    JSONObject infoForNotification = endpnt.getInfoForNotification();
+                    if (infoForNotification != null) {
+                        notification.putAll(infoForNotification);
+                    }
+                    ScheduledFuture<?> scheduledFuture = TaskPools.SCHEDULED_POOL.scheduleAtFixedRate(createEndpointStatsHandler(endpnt, logger), 10, 10, TimeUnit.SECONDS);
+                    ScheduledFuture<?> prevScheduledFuture = endpointScheduledFutureMap.put(endpnt, scheduledFuture);
+                    if (prevScheduledFuture != null) {
+                        logger.warn("prevScheduledFuture != null");
+                        prevScheduledFuture.cancel(false);
+                    }
+                } else if (event.getTopic().equals(EventFactory.ENDPOINT_EXPIRED_TOPIC)) {
+                    ScheduledFuture<?> scheduledFuture = endpointScheduledFutureMap.remove(endpnt);
+                    if (scheduledFuture != null) {
+                        scheduledFuture.cancel(false);
+                    }
+                }
+            } else {
+                logger.info(String.format("This is endpoint of type '%s'. Ignoring notification", endpoint.getClass().toString()));
+                return;
             }
-
-            submitNotification(conference, notification);
         }
+
+        submitNotification(conference, lastConferenceEvent, notification);
     }
 
-    private Runnable createEndpointStatsHandler(final Endpoint endpoint) {
+    private Runnable createEndpointStatsHandler(final Endpoint endpoint, Logger logger) {
         final Conference conference = endpoint.getConference();
         final Holder<Integer> previousNumExpectedPackets = new Holder<>(0);
         final Holder<Integer> previousNumReceivedPackets = new Holder<>(0);
+        final Holder<Map<Long, RtcpReportBlock>> previousSsrcLastReportBlock = new Holder<>(null);
         return () -> {
-            if (endpoint.isExpired()) {
-                return;
-            }
+            try {
+                if (endpoint.isExpired()) {
+                    return;
+                }
 
-            TransceiverStats transceiverStats = endpoint.getTransceiverStats();
-            long createdAt = clock.instant().getEpochSecond();
-            Map<Long, IncomingSsrcStats.Snapshot> incomingSsrcStatsMap = transceiverStats.getIncomingStats().getSsrcStats();
-            if (incomingSsrcStatsMap.size() == 0) {
-                return;
-            }
-            double rtt = transceiverStats.getEndpointConnectionStats().getRtt();
-            double jitter = 0.0;
-            int numExpectedPackets = 0;
-            int numReceivedPackets = 0;
-            for (IncomingSsrcStats.Snapshot incomingSsrcStats : incomingSsrcStatsMap.values()) {
-                jitter += incomingSsrcStats.getJitter();
-                numExpectedPackets += incomingSsrcStats.getNumExpectedPackets();
-                numReceivedPackets += incomingSsrcStats.getNumReceivedPackets();
-            }
-            jitter /= incomingSsrcStatsMap.size();
-            int numExpectedPacketsInterval = numExpectedPackets - previousNumExpectedPackets.value;
-            int numReceivedPacketsInterval = numReceivedPackets - previousNumReceivedPackets.value;
-            int numLostPacketsInterval = numExpectedPacketsInterval - numReceivedPacketsInterval;
-            int fractionLost = 0;
-            if (numExpectedPacketsInterval != 0 && numLostPacketsInterval > 0) {
-                fractionLost = 100 * numLostPacketsInterval /  numExpectedPacketsInterval;
-            }
-            previousNumExpectedPackets.value = numExpectedPackets;
-            previousNumReceivedPackets.value = numReceivedPackets;
+                TransceiverStats transceiverStats = endpoint.getTransceiver().getTransceiverStats();
+                long createdAt = clock.instant().getEpochSecond();
+                Map<Long, IncomingSsrcStats.Snapshot> incomingSsrcStatsMap = transceiverStats.getIncomingStats().getSsrcStats();
+                if (incomingSsrcStatsMap.size() == 0) {
+                    return;
+                }
+                double rtt = transceiverStats.getEndpointConnectionStats().getRtt();
+                double jitter = incomingSsrcStatsMap.values().stream()
+                        .mapToDouble(IncomingSsrcStats.Snapshot::getJitter)
+                        .max().orElse(0.0);
+                int numExpectedPackets = 0;
+                int numReceivedPackets = 0;
+                for (IncomingSsrcStats.Snapshot incomingSsrcStats : incomingSsrcStatsMap.values()) {
+                    numExpectedPackets += incomingSsrcStats.getNumExpectedPackets();
+                    numReceivedPackets += incomingSsrcStats.getNumReceivedPackets();
+                }
+                int numExpectedPacketsInterval = numExpectedPackets - previousNumExpectedPackets.value;
+                int numReceivedPacketsInterval = numReceivedPackets - previousNumReceivedPackets.value;
+                int numLostPacketsInterval = numExpectedPacketsInterval - numReceivedPacketsInterval;
+                int fractionLost = 0;
+                if (numExpectedPacketsInterval != 0 && numLostPacketsInterval > 0) {
+                    fractionLost = 100 * numLostPacketsInterval /  numExpectedPacketsInterval;
+                }
+                previousNumExpectedPackets.value = numExpectedPackets;
+                previousNumReceivedPackets.value = numReceivedPackets;
 
-            JSONObject notification = new JSONObject(ImmutableMap.<String, Object>builder()
-                    .put("eventType", "ENDPOINT_SERVER_STATS")
-                    .put("createdAt", createdAt)
-                    .put("conferenceId", conference.getID())
-                    .put("conferenceGid", conference.getGid())
-                    .put("endpointId", endpoint.getID())
-                    .put("endpointUuid", endpoint.getUuid().toString())
-                    .put("payload", ImmutableMap.of(
-                            "rtt", rtt,
-                            "jitter", jitter,
-                            "fractionLost", fractionLost
-                    ))
-                    .build());
+                JSONObject serverStatsNotification = new JSONObject(ImmutableMap.<String, Object>builder()
+                        .put("eventType", "ENDPOINT_SERVER_STATS")
+                        .put("createdAt", createdAt)
+                        .put("conferenceId", conference.getID())
+                        .put("conferenceGid", conference.getGid())
+                        .put("endpointId", endpoint.getID())
+                        .put("endpointUuid", endpoint.getUuid().toString())
+                        .put("payload", ImmutableMap.of(
+                                "rtt", rtt,
+                                "jitter", jitter,
+                                "fractionLost", fractionLost
+                        ))
+                        .build());
 
-            submitNotification(conference, notification);
+                submitNotification(conference, false, serverStatsNotification);
+
+                Map<Long, RtcpReportBlock> ssrcLastReportBlock = endpoint.getSsrcLastReportBlock();
+                if (previousSsrcLastReportBlock.value != null) {
+                    class SubscribedEndpointStats {
+                        long cumulativePacketsLost;
+                        long expectedPackets;
+                    }
+                    Map<String, SubscribedEndpointStats> subscribedEndpointStats = new HashMap<>();
+                    ssrcLastReportBlock.forEach((ssrc, reportBlock) -> {
+                        RtcpReportBlock prevReportBlock = previousSsrcLastReportBlock.value.get(ssrc);
+                        if (prevReportBlock == null || reportBlock.getExtendedHighestSeqNum() == prevReportBlock.getExtendedHighestSeqNum()) return;
+                        AbstractEndpoint subscribedEndpoint = conference.findEndpointByReceiveSSRC(reportBlock.getSsrc());
+                        if (subscribedEndpoint == null) return;
+                        SubscribedEndpointStats stats = subscribedEndpointStats.computeIfAbsent(subscribedEndpoint.getID(), k -> new SubscribedEndpointStats());
+                        stats.cumulativePacketsLost += reportBlock.getCumulativePacketsLost() - prevReportBlock.getCumulativePacketsLost();
+                        stats.expectedPackets += reportBlock.getExtendedHighestSeqNum() - prevReportBlock.getExtendedHighestSeqNum();
+                    });
+                    if (subscribedEndpointStats.size() > 0) {
+                        List<ImmutableMap<String, Object>> endpoints = subscribedEndpointStats.entrySet().stream()
+                                .map(x -> ImmutableMap.<String,Object>of("endpointId", x.getKey(), "fractionLost", x.getValue().cumulativePacketsLost * 100 / x.getValue().expectedPackets))
+                                .collect(Collectors.toList());
+                        JSONObject clientStatsNotification = new JSONObject(ImmutableMap.<String, Object>builder()
+                                .put("eventType", "ENDPOINT_CLIENT_STATS")
+                                .put("createdAt", createdAt)
+                                .put("conferenceId", conference.getID())
+                                .put("conferenceGid", conference.getGid())
+                                .put("endpointId", endpoint.getID())
+                                .put("endpointUuid", endpoint.getUuid().toString())
+                                .put("payload", ImmutableMap.of("endpoints", endpoints))
+                                .build());
+                        submitNotification(conference, false, clientStatsNotification);
+                    }
+                }
+                previousSsrcLastReportBlock.value = ssrcLastReportBlock;
+            } catch (Exception e) {
+                logger.error("Endpoint stats handler error", e);
+                throw e;
+            }
         };
     }
 
@@ -260,7 +290,11 @@ public class NotificationsHandler extends EventHandlerActivator {
         };
     }
 
-    private void submitNotification(Conference conference, JSONObject notification) {
+    private void submitNotification(Conference conference, boolean lastConfNotification, JSONObject notification) {
+        if (lastConfNotification) {
+            // in case some messages arrive after CONFERENCE_EXPIRED event
+            TaskPools.SCHEDULED_POOL.schedule(() -> conferenceNotificationsMap.remove(conference), 30, TimeUnit.SECONDS);
+        }
         Request request = new Request.Builder()
                 .url(notificationUrl)
                 .post(RequestBody.create(notification.toJSONString(), JSON))

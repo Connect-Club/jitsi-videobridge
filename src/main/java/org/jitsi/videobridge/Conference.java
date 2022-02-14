@@ -1299,23 +1299,6 @@ public class Conference
         }
     }
 
-    public void onRtcpRrPacket(Endpoint endpoint, RtcpRrPacket rrPacket) {
-        EventAdmin eventAdmin = getEventAdmin();
-        if (eventAdmin == null) return;
-
-        Map<AbstractEndpoint, List<RtcpReportBlock>> endpointReportBlocks = rrPacket.getReportBlocks().stream()
-                .map(x -> new AbstractMap.SimpleEntry<>(findEndpointByReceiveSSRC(x.getSsrc()), x))
-                .filter(x -> x.getKey() != null)
-                .collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
-
-        endpointReportBlocks.forEach((subscribedEndpoint, reportBlocks) ->
-                this.eventAdmin.sendEvent(EventFactory.endpointReceivedReceiverReport(
-                        endpoint,
-                        subscribedEndpoint,
-                        reportBlocks)
-                ));
-    }
-
     /**
      * Gets a JSON representation of the parts of this object's state that
      * are deemed useful for debugging.
