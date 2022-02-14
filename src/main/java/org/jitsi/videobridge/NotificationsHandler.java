@@ -152,7 +152,7 @@ public class NotificationsHandler extends EventHandlerActivator {
             }
         }
 
-        submitNotification(conference, lastConferenceEvent, notification);
+        submitNotification(conference, lastConferenceEvent, notification, logger);
     }
 
     private Runnable createEndpointStatsHandler(final Endpoint endpoint, Logger logger) {
@@ -235,7 +235,7 @@ public class NotificationsHandler extends EventHandlerActivator {
                         ))
                         .build());
 
-                submitNotification(conference, false, serverStatsNotification);
+                submitNotification(conference, false, serverStatsNotification, logger);
             } catch (Exception e) {
                 logger.error("Endpoint stats handler error", e);
                 throw e;
@@ -243,7 +243,7 @@ public class NotificationsHandler extends EventHandlerActivator {
         };
     }
 
-    private Callback createCallback(ConferenceNotifications conferenceNotifications) {
+    private Callback createCallback(ConferenceNotifications conferenceNotifications, Logger logger) {
         return new Callback() {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
@@ -282,7 +282,7 @@ public class NotificationsHandler extends EventHandlerActivator {
         };
     }
 
-    private void submitNotification(Conference conference, boolean lastConfNotification, JSONObject notification) {
+    private void submitNotification(Conference conference, boolean lastConfNotification, JSONObject notification, Logger logger) {
         if (lastConfNotification) {
             // in case some messages arrive after CONFERENCE_EXPIRED event
             TaskPools.SCHEDULED_POOL.schedule(() -> conferenceNotificationsMap.remove(conference), 30, TimeUnit.SECONDS);
@@ -298,7 +298,7 @@ public class NotificationsHandler extends EventHandlerActivator {
                 conferenceNotifications.queue.add(request);
             } else {
                 logger.info("Sending notification " + notification.toJSONString());
-                okHttpClient.newCall(request).enqueue(createCallback(conferenceNotifications));
+                okHttpClient.newCall(request).enqueue(createCallback(conferenceNotifications, logger));
                 conferenceNotifications.sendingInProgress = true;
             }
         } finally {
