@@ -37,16 +37,15 @@ public class NotificationsHandler extends EventHandlerActivator {
             .readTimeout(30, TimeUnit.SECONDS)
             .build();
 
-    static class ConferenceNotifications {
+    static class Notifications {
         final Lock lock = new ReentrantLock(true);
         final Queue<Request> queue = new LinkedList<>();
         boolean sendingInProgress;
     }
 
-    private final Map<Conference, ConferenceNotifications> conferenceNotificationsMap = new ConcurrentHashMap<>();
+    private final Notifications globalNotifications = new Notifications();
+    private final Map<Conference, Notifications> conferenceNotificationsMap = new ConcurrentHashMap<>();
     private final Map<Endpoint, ScheduledFuture<?>> endpointScheduledFutureMap = new ConcurrentHashMap<>();
-
-    private String notificationUrl;
 
     private final Clock clock = Clock.systemUTC();
 
@@ -65,16 +64,6 @@ public class NotificationsHandler extends EventHandlerActivator {
         if (event == null) {
             logger.debug(() -> "Could not handle an event because it was null.");
             return;
-        }
-        if (StringUtils.isBlank(notificationUrl)) {
-            notificationUrl = PropertyUtil.getValue(
-                    "conference.notification.url",
-                    "JVB_CONFERENCE_NOTIFICATION_URL"
-            );
-            if (StringUtils.isBlank(notificationUrl)) {
-                logger.debug(() -> "Could not handle an event because notification url is blank.");
-                return;
-            }
         }
         String eventType = null;
         AbstractEndpoint endpoint = null;
@@ -113,6 +102,7 @@ public class NotificationsHandler extends EventHandlerActivator {
         logger.addContext(ImmutableMap.of("confId", conference.getID(), "gid", conference.getGid()));
         JSONObject notification = new JSONObject(ImmutableMap.of(
                 "eventType", eventType,
+                "eventId", UUID.randomUUID().toString(),
                 "createdAt", createdAt,
                 "conferenceId", conference.getID(),
                 "conferenceGid", conference.getGid()
@@ -152,7 +142,7 @@ public class NotificationsHandler extends EventHandlerActivator {
             }
         }
 
-        submitNotification(conference, lastConferenceEvent, notification, logger);
+        submitConferenceNotification(conference, lastConferenceEvent, notification, logger);
     }
 
     private Runnable createEndpointStatsHandler(final Endpoint endpoint, Logger logger) {
@@ -214,28 +204,27 @@ public class NotificationsHandler extends EventHandlerActivator {
                 List<ImmutableMap<String, Object>> subscribedEndpoints = subscribedEndpointStats.entrySet().stream()
                         .map(x -> ImmutableMap.<String,Object>of(
                                 "endpointId", x.getKey(),
+                                "expectedPackets", x.getValue().packetsExpected,
                                 "fractionLost", x.getValue().packetsLost * 100 / x.getValue().packetsExpected
                         ))
                         .collect(Collectors.toList());
                 previousSsrcReportBlock.value = ssrcLastReportBlock;
                 //End of client stats
 
-                JSONObject serverStatsNotification = new JSONObject(ImmutableMap.<String, Object>builder()
-                        .put("eventType", "ENDPOINT_STATS")
+                JSONObject endpointStats = new JSONObject(ImmutableMap.<String, Object>builder()
                         .put("createdAt", createdAt)
                         .put("conferenceId", conference.getID())
                         .put("conferenceGid", conference.getGid())
                         .put("endpointId", endpoint.getID())
                         .put("endpointUuid", endpoint.getUuid().toString())
-                        .put("payload", ImmutableMap.of(
-                                "rtt", rtt,
-                                "jitter", jitter,
-                                "fractionLost", fractionLost,
-                                "subscribedEndpoints", subscribedEndpoints
-                        ))
+                        .put("rtt", rtt)
+                        .put("jitter", jitter)
+                        .put("expectedPackets", numExpectedPacketsInterval)
+                        .put("fractionLost", fractionLost)
+                        .put("subscribedEndpoints", subscribedEndpoints)
                         .build());
 
-                submitNotification(conference, false, serverStatsNotification, logger);
+                submitStatisticNotification("endpoint", endpointStats, logger);
             } catch (Exception e) {
                 logger.error("Endpoint stats handler error", e);
                 throw e;
@@ -243,7 +232,7 @@ public class NotificationsHandler extends EventHandlerActivator {
         };
     }
 
-    private Callback createCallback(ConferenceNotifications conferenceNotifications, Logger logger) {
+    private Callback createCallback(Notifications conferenceNotifications, Logger logger) {
         return new Callback() {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
@@ -282,27 +271,60 @@ public class NotificationsHandler extends EventHandlerActivator {
         };
     }
 
-    private void submitNotification(Conference conference, boolean lastConfNotification, JSONObject notification, Logger logger) {
+    private String statisticNotificationUrl;
+    private void submitStatisticNotification(String type, JSONObject notification, Logger logger) {
+        if (StringUtils.isBlank(statisticNotificationUrl)) {
+            statisticNotificationUrl = PropertyUtil.getValue(
+                    "statistic.notification.url",
+                    "JVB_STATISTIC_NOTIFICATION_URL"
+            );
+            if (StringUtils.isBlank(statisticNotificationUrl)) {
+                logger.debug(() -> "Can not handle notification because statistic notification url is empty.");
+                return;
+            }
+        }
+
+        submitNotification(statisticNotificationUrl + "/" + type, globalNotifications, notification, logger);
+    }
+
+    private String conferenceNotificationUrl;
+    private void submitConferenceNotification(Conference conference, boolean lastConfNotification, JSONObject notification, Logger logger) {
+        if (StringUtils.isBlank(conferenceNotificationUrl)) {
+            conferenceNotificationUrl = PropertyUtil.getValue(
+                    "conference.notification.url",
+                    "JVB_CONFERENCE_NOTIFICATION_URL"
+            );
+            if (StringUtils.isBlank(conferenceNotificationUrl)) {
+                logger.debug(() -> "Can not handle notification because conference notification url is empty.");
+                return;
+            }
+        }
+
         if (lastConfNotification) {
             // in case some messages arrive after CONFERENCE_EXPIRED event
             TaskPools.SCHEDULED_POOL.schedule(() -> conferenceNotificationsMap.remove(conference), 30, TimeUnit.SECONDS);
         }
+        Notifications notifications = conferenceNotificationsMap.computeIfAbsent(conference, k -> new Notifications());
+
+        submitNotification(conferenceNotificationUrl, notifications, notification, logger);
+    }
+
+    private void submitNotification(String notificationUrl, Notifications notifications, JSONObject notification, Logger logger) {
         Request request = new Request.Builder()
                 .url(notificationUrl)
                 .post(RequestBody.create(notification.toJSONString(), JSON))
                 .build();
-        ConferenceNotifications conferenceNotifications = conferenceNotificationsMap.computeIfAbsent(conference, k -> new ConferenceNotifications());
-        conferenceNotifications.lock.lock();
+        notifications.lock.lock();
         try {
-            if (conferenceNotifications.sendingInProgress) {
-                conferenceNotifications.queue.add(request);
+            if (notifications.sendingInProgress) {
+                notifications.queue.add(request);
             } else {
                 logger.info("Sending notification " + notification.toJSONString());
-                okHttpClient.newCall(request).enqueue(createCallback(conferenceNotifications, logger));
-                conferenceNotifications.sendingInProgress = true;
+                okHttpClient.newCall(request).enqueue(createCallback(notifications, logger));
+                notifications.sendingInProgress = true;
             }
         } finally {
-            conferenceNotifications.lock.unlock();
+            notifications.lock.unlock();
         }
     }
 }
