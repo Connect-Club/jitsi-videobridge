@@ -160,9 +160,6 @@ public class NotificationsHandler extends EventHandlerActivator {
                 TransceiverStats transceiverStats = endpoint.getTransceiver().getTransceiverStats();
                 long createdAt = clock.instant().getEpochSecond();
                 Map<Long, IncomingSsrcStats.Snapshot> incomingSsrcStatsMap = transceiverStats.getIncomingStats().getSsrcStats();
-                if (incomingSsrcStatsMap.size() == 0) {
-                    return;
-                }
                 double rtt = transceiverStats.getEndpointConnectionStats().getRtt();
                 double jitter = incomingSsrcStatsMap.values().stream()
                         .mapToDouble(IncomingSsrcStats.Snapshot::getJitter)
