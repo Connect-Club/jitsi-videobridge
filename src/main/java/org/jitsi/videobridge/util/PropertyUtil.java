@@ -9,11 +9,15 @@ import org.jitsi.utils.logging2.Logger;
 import org.jitsi.utils.logging2.LoggerImpl;
 
 import javax.xml.ws.Holder;
+import java.util.concurrent.TimeUnit;
 
 public class PropertyUtil {
     private static final Logger logger = new LoggerImpl(PropertyUtil.class.getName());
 
-    private final static OkHttpClient okHttpClient = new OkHttpClient.Builder().build();
+    private final static OkHttpClient okHttpClient = new OkHttpClient.Builder()
+            .dispatcher(new Dispatcher(TaskPools.IO_POOL))
+            .callTimeout(5, TimeUnit.SECONDS)
+            .build();
 
     public static String getValue(String localSystemProp, String gcloudInstanceAttr) {
         Holder<String> propertyValueHolder = new Holder<>(System.getProperty(localSystemProp));

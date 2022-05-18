@@ -26,10 +26,7 @@ import java.io.IOException;
 import java.net.*;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -42,7 +39,8 @@ public class ConfAudioProcessorTransport implements PotentialPacketHandler {
     private static final int SO_SNDBUF = 1024 * 1024;
 
     private final static OkHttpClient okHttpClient = new OkHttpClient.Builder()
-            .dispatcher(new Dispatcher(Executors.newSingleThreadExecutor()))
+            .dispatcher(new Dispatcher(TaskPools.IO_POOL))
+            .callTimeout(5, TimeUnit.SECONDS)
             .build();
 
     private final Map<String, PacketInfoQueue> outgoingPacketQueues =
@@ -56,7 +54,7 @@ public class ConfAudioProcessorTransport implements PotentialPacketHandler {
 
     private final UdpTransport udpTransport;
 
-    private InetSocketAddress processorAddress = null;
+    private volatile InetSocketAddress processorAddress = null;
 
     private final Conference conference;
 
@@ -78,7 +76,7 @@ public class ConfAudioProcessorTransport implements PotentialPacketHandler {
         }
     }
 
-    private PipelineSrcPort getAudioProcessorPipelineSrcPort(String id, String sinkHost, int sinkPort, int seqNum) throws IOException {
+    private CompletableFuture<PipelineSrcPort> getAudioProcessorPipelineSrcPort(String id, String sinkHost, int sinkPort, int seqNum) {
         Request request = new Request.Builder()
                 .url(getRtpProcessorHttpUrlBuilder(id)
                         .addQueryParameter("sinkHost", sinkHost)
@@ -88,24 +86,39 @@ public class ConfAudioProcessorTransport implements PotentialPacketHandler {
                 )
                 .post(RequestBody.create("", null))
                 .build();
-        try (Response response = okHttpClient.newCall(request).execute()) {
-            ResponseBody responseBody = response.body();
-            if (response.isSuccessful()) {
-                if (responseBody == null) {
-                    throw new RuntimeException(String.format(
-                            "Successful response on getAudioProcessorPipelineSrcPort but body is empty. Code: %s",
-                            response.code()
-                    ));
-                }
-                return new PipelineSrcPort(Integer.parseInt(responseBody.string()), response.code() == HttpURLConnection.HTTP_CREATED);
-            } else {
-                throw new RuntimeException(String.format(
-                        "Unsuccessful response on getAudioProcessorPipelineSrcPort. Code: %s. Response: %s",
-                        response.code(),
-                        responseBody == null ? "" : responseBody.string()
-                ));
+        CompletableFuture<PipelineSrcPort> result = new CompletableFuture<>();
+        okHttpClient.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                result.completeExceptionally(e);
             }
-        }
+
+            @Override
+            public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                try {
+                    ResponseBody responseBody = response.body();
+                    if (response.isSuccessful()) {
+                        if (responseBody == null) {
+                            throw new RuntimeException(String.format(
+                                    "Successful response on getAudioProcessorPipelineSrcPort but body is empty. Code: %s",
+                                    response.code()
+                            ));
+                        }
+                        result.complete(new PipelineSrcPort(Integer.parseInt(responseBody.string()), response.code() == HttpURLConnection.HTTP_CREATED));
+                    } else {
+                        Throwable e = new RuntimeException(String.format(
+                                "Unsuccessful response on getAudioProcessorPipelineSrcPort. Code: %s. Response: %s",
+                                response.code(),
+                                responseBody == null ? "" : responseBody.string()
+                        ));
+                        result.completeExceptionally(e);
+                    }
+                } finally {
+                    response.close();
+                }
+            }
+        });
+        return result;
     }
 
     private static void deleteAudioProcessorPipeline(String id, Callback callback) {
@@ -152,25 +165,26 @@ public class ConfAudioProcessorTransport implements PotentialPacketHandler {
             return;
         }
 
-        try {
-            PipelineSrcPort pipelineSrcPort = getAudioProcessorPipelineSrcPort(
-                    conference.getGid(),
-                    udpTransport.getLocalAddress().getHostAddress(),
-                    udpTransport.getLocalPort(),
-                    seqNum
-            );
-            boolean processorAddressChanged = false;
-            if (processorAddress == null || processorAddress.getPort() != pipelineSrcPort.value) {
-                processorAddress = new InetSocketAddress(getAudioProcessorIp(), pipelineSrcPort.value);
-                processorAddressChanged = true;
+        getAudioProcessorPipelineSrcPort(
+                conference.getGid(),
+                udpTransport.getLocalAddress().getHostAddress(),
+                udpTransport.getLocalPort(),
+                seqNum
+        ).whenComplete((pipelineSrcPort, e) -> {
+            if (e != null) {
+                logger.error("updateProcessorAddress error", e);
+                processorAddress = null;
+            } else {
+                boolean processorAddressChanged = false;
+                if (processorAddress == null || processorAddress.getPort() != pipelineSrcPort.value) {
+                    processorAddress = new InetSocketAddress(getAudioProcessorIp(), pipelineSrcPort.value);
+                    processorAddressChanged = true;
+                }
+                if (pipelineSrcPort.created || processorAddressChanged) {
+                    this.scheduleUpdatePipeline(0);
+                }
             }
-            if (pipelineSrcPort.created || processorAddressChanged) {
-                this.scheduleUpdatePipeline(0);
-            }
-        } catch (Exception e) {
-            logger.error("updateProcessorAddress error", e);
-            processorAddress = null;
-        }
+        });
     }
 
     private final ScheduledFuture<?> updateProcessorAddressScheduledFuture;

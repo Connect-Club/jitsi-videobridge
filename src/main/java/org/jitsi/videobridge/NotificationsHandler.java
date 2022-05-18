@@ -2,6 +2,7 @@ package org.jitsi.videobridge;
 
 import com.google.common.collect.ImmutableMap;
 import okhttp3.*;
+import okio.Buffer;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jitsi.eventadmin.Event;
@@ -34,6 +35,7 @@ public class NotificationsHandler extends EventHandlerActivator {
     public static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
     private final static OkHttpClient okHttpClient = new OkHttpClient.Builder()
+            .dispatcher(new Dispatcher(TaskPools.IO_POOL))
             .readTimeout(30, TimeUnit.SECONDS)
             .build();
 
@@ -68,7 +70,6 @@ public class NotificationsHandler extends EventHandlerActivator {
         String eventType = null;
         AbstractEndpoint endpoint = null;
         Conference conference = null;
-        Map<String, Object> payload = null;
         boolean lastConferenceEvent = false;
         switch (event.getTopic()) {
             case EventFactory.CONFERENCE_CREATED_TOPIC:
@@ -107,14 +108,11 @@ public class NotificationsHandler extends EventHandlerActivator {
                 "conferenceId", conference.getID(),
                 "conferenceGid", conference.getGid()
         ));
-        if (payload != null) {
-            notification.put("payload", new JSONObject(payload));
-        }
         if (endpoint != null) {
             if (endpoint instanceof Endpoint) {
                 Endpoint endpnt = (Endpoint) endpoint;
                 if (endpnt.isShadow()) {
-                    logger.info("This is shadow endpoint. Ignoring notification");
+                    logger.info(String.format("This is shadow endpoint. Ignoring event '%s'", event.getTopic()));
                     return;
                 }
                 notification.put("endpointId", endpnt.getID());
@@ -137,7 +135,7 @@ public class NotificationsHandler extends EventHandlerActivator {
                     }
                 }
             } else {
-                logger.info(String.format("This is endpoint of type '%s'. Ignoring notification", endpoint.getClass().toString()));
+                logger.info(String.format("This is endpoint of type '%s'. Ignoring event '%s'", endpoint.getClass().toString(), event.getTopic()));
                 return;
             }
         }
@@ -229,7 +227,18 @@ public class NotificationsHandler extends EventHandlerActivator {
         };
     }
 
-    private Callback createCallback(Notifications conferenceNotifications, Logger logger) {
+    private static String bodyToString(final RequestBody request){
+        try {
+            final Buffer buffer = new Buffer();
+            request.writeTo(buffer);
+            return buffer.readUtf8();
+        }
+        catch (final IOException e) {
+            return "did not work";
+        }
+    }
+
+    private Callback createCallback(final Notifications conferenceNotifications, final Logger logger) {
         return new Callback() {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
@@ -248,7 +257,7 @@ public class NotificationsHandler extends EventHandlerActivator {
                             if (notification == null) {
                                 conferenceNotifications.sendingInProgress = false;
                             } else {
-                                logger.info("Sending notification " + notification.body());
+                                logger.info("Sending notification " + bodyToString(notification.body()));
                                 okHttpClient.newCall(notification).enqueue(this);
                             }
                         } finally {
