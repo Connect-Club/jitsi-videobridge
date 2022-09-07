@@ -383,6 +383,21 @@
                <skipAssembly>${assembly.skipAssembly}</skipAssembly>
              </configuration>
            </execution>
+           <execution>
+             <id>assemble-archive-dir</id>
+             <phase>package</phase>
+             <goals>
+               <goal>single</goal>
+             </goals>
+             <configuration>
+               <finalName>${artifactId}</finalName>
+               <appendAssemblyId>false</appendAssemblyId>
+               <descriptors>
+                 <descriptor>src/assembly/dir.xml</descriptor>
+               </descriptors>
+               <skipAssembly>${assembly.skipAssembly}</skipAssembly>
+             </configuration>
+           </execution>
          </executions>
       </plugin>
       <plugin>
@@ -650,11 +665,11 @@
       <url>https://github.com/jitsi/jitsi-maven-repository/raw/master/snapshots/</url>
     </repository>
     <repository>
-      <id>gitlab-maven</id>
+      <id>github</id>
+      <url>https://maven.pkg.github.com/Connect-Club/jitsi-videobridge</url>
       <snapshots>
         <enabled>true</enabled>
       </snapshots>
-      <url>https://gitlab.com/api/v4/groups/connect.club/-/packages/maven</url>
     </repository>
   </repositories>
 </project>
