@@ -665,7 +665,7 @@
       <url>https://github.com/jitsi/jitsi-maven-repository/raw/master/snapshots/</url>
     </repository>
     <repository>
-      <id>github</id>
+      <id>connectclub-jitsi-videobridge</id>
       <url>https://maven.pkg.github.com/Connect-Club/jitsi-videobridge</url>
       <snapshots>
         <enabled>true</enabled>

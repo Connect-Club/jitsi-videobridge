@@ -1,11 +1,8 @@
 FROM maven:3-jdk-8 as builder
 WORKDIR /build
 ADD pom.xml ./
-ADD docker/settings.xml /root/.m2/
-RUN --mount=type=secret,id=github_username --mount=type=secret,id=github_token \
-    GITHUB_USERNAME=`cat /run/secrets/github_username` && \
-    GITHUB_TOKEN=`cat /run/secrets/github_token` && \
-    mvn dependency:go-offline -B -Dgithub.username=${GITHUB_USERNAME} -Dgithub.token=${GITHUB_TOKEN}
+ADD settings.xml /root/.m2/
+RUN mvn dependency:go-offline -B
 ADD . .
 RUN mvn clean package
 
